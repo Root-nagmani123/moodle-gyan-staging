@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<XMLDB PATH="local/form/db" VERSION="20190603" COMMENT="XMLDB file common settings tables for SMS(Student Management System)"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd">
+
+    <TABLES>
+        
+        <TABLE NAME="local_form" COMMENT="form">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="The description of the Term"/>               
+                <FIELD NAME="visible" TYPE="int" LENGTH="1" DEFAULT="1" NOTNULL="false" SEQUENCE="false"/> 
+                <FIELD NAME="sortorder" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="20" NOTNULL="false" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="form_sections" COMMENT="formsections">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="formid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="section_title" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="sort_order" TYPE="int" LENGTH="10" DEFAULT="0" NOTNULL="false" SEQUENCE="false"/> 
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+          <TABLE NAME="local_user" COMMENT="localuser">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="username" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="email" TYPE="char" LENGTH="255"  NOTNULL="false" SEQUENCE="false"/> 
+                <FIELD NAME="password" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/> 
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="20" NOTNULL="false" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="form_submissions" COMMENT="formsubmissions">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="formid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="uid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="fieldname" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="fieldvalue" TYPE="text" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>               
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="20" NOTNULL="false" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="form_data" COMMENT="formdata">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="formid" TYPE="int" LENGTH="10"  SEQUENCE="false"/>
+                <FIELD NAME="section_id" TYPE="int" LENGTH="20"  SEQUENCE="false"/>
+                <FIELD NAME="formname" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="formtype" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="formlabel" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="fieldoption" TYPE="text"  SEQUENCE="false"/>
+                <FIELD NAME="required" TYPE="int" LENGTH="10"  SEQUENCE="false"/>
+                <FIELD NAME="layout" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="table_index" TYPE="int" LENGTH="10"  SEQUENCE="false"/>
+                <FIELD NAME="format" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="row_index" TYPE="int" LENGTH="10"  SEQUENCE="false"/>
+                <FIELD NAME="col_index" TYPE="int" LENGTH="10" SEQUENCE="false"/>
+                <FIELD NAME="header" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="field_type" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="field_title" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="field_url" TYPE="char" LENGTH="255"  SEQUENCE="false"/>
+                <FIELD NAME="field_options" TYPE="char" LENGTH="1000"  SEQUENCE="false"/>
+                <FIELD NAME="field_checkbox_options" TYPE="text"  SEQUENCE="false"/>
+                <FIELD NAME="field_radio_options" TYPE="text" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="country" COMMENT="country">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="name" TYPE="text" LENGTH="1000" NOTNULL="false" SEQUENCE="false"/>               
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="state" COMMENT="state">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="country_id" TYPE="int" LENGTH="20" NOTNULL="false" SEQUENCE="false"/> 
+                <FIELD NAME="state_name" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>               
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="district" COMMENT="district">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="state_id" TYPE="int" LENGTH="20" NOTNULL="false" SEQUENCE="false"/> 
+                <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>               
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="languages" COMMENT="languages">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="language" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>               
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" COMMENT="The unique id for id"/>
+            </KEYS>
+        </TABLE>
+    </TABLES>
+</XMLDB>
+

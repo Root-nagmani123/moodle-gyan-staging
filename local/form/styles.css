@@ -1,0 +1,66 @@
+.form-label {
+    margin-bottom: 5px;
+    display: block;
+    font-weight: bold;
+}
+.form-input {
+    margin-bottom: 15px;
+}
+.radio-group {
+    margin-bottom: 15px;
+}
+
+
+/*manageform table css*/
+
+/* Add this CSS to your theme stylesheet or inline styles */
+.visible_form {
+    display: inline-block;
+    margin-left: 5px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.visible_form i {
+    font-size: 16px; /* Adjust size as needed */
+}
+
+/* Additional styles for the action buttons */
+.btn-outline-primary, .btn-outline-secondary {
+    margin-right: 5px; /* Space between buttons */
+}
+
+/* Style for aligning action icons horizontally */
+.action-icons {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Adjust spacing between icons as needed */
+}
+
+.action-icons .btn,
+.action-icons i {
+    margin: 0; /* Remove default margin */
+    vertical-align: middle; /* Align icons vertically in the middle */
+}
+
+.homepage-links {
+    text-align: center;
+    margin-top: 50px;
+}
+.btn {
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 5px;
+    margin: 5px;
+}
+.btn-primary {
+    background-color: #007bff;
+    color: #fff;
+}
+.btn-secondary {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+
+
