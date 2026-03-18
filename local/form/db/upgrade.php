@@ -2,7 +2,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-function xmldb_local_form_upgrade($oldversion) {
+function xmldb_local_form_upgrade($oldversion)
+{
     global $DB;
 
     $dbman = $DB->get_manager();
@@ -99,6 +100,25 @@ function xmldb_local_form_upgrade($oldversion) {
         }
 
         upgrade_plugin_savepoint(true, 2020061500.38, 'local', 'form');
+    }
+
+    if ($oldversion < 2026030500.45) {
+
+        $table = new xmldb_table('form_submissions');
+
+        // Define the new confirmflag field
+        $field = new xmldb_field('confirmflag', XMLDB_TYPE_CHAR, '20', null, null, null, 'Confirmed', 'visible');
+
+        // Add the field if it does not exist
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+
+            // Initialize existing rows to 'Confirmed'
+            $DB->execute("UPDATE {form_submissions} SET confirmflag = 'Confirmed' WHERE confirmflag IS NULL");
+        }
+
+        // Savepoint
+        upgrade_plugin_savepoint(true, 2026030500.45, 'local', 'form');
     }
 
     return $result;

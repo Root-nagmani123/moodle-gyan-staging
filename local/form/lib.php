@@ -220,16 +220,6 @@ function printData($formid, $columns, $page, $perpage, $uid)
 function printcourseData($formid, $columns, $page, $perpage, $visible, $dataformat)
 {
   global $DB, $CFG;
-
-  // die("type of dataformat: " . $dataformat);
-
-  // ===============================
-  // FORCE INTEGER VALUES
-  // ===============================
-  $page    = (int)$page;
-  $perpage = (int)$perpage;
-  $offset  = $page * $perpage;
-
   // Fetch all records for the given form ID
   $sql = "SELECT id, uid, fieldname, fieldvalue
               FROM {form_submissions}
@@ -237,10 +227,8 @@ function printcourseData($formid, $columns, $page, $perpage, $visible, $dataform
                AND visible = :visible
           ORDER BY id ASC";
 
-  $params  = ['formid' => $formid, 'visible' => $visible];
+  $params  = ['formid' => $formid, 'visible' => 1];
   $records = $DB->get_records_sql($sql, $params);
-  // print_object($records);
-
   // Process data into rows by `uid`
   $users = [];
 
@@ -250,9 +238,27 @@ function printcourseData($formid, $columns, $page, $perpage, $visible, $dataform
 
     // Initialize row data if it's the first time we see this UID
     if (!isset($users[$uid])) {
+      // Get confirmflag status
+      $confirmflag = $DB->get_field_sql(
+        "SELECT MAX(confirmflag) 
+       FROM {form_submissions} 
+      WHERE uid = :uid AND formid = :formid",
+        ['uid' => $uid, 'formid' => $formid]
+      );
+
+      // Determine status based on string values
+      if ($confirmflag === false || $confirmflag === null) {
+        $status = 'Not Submitted';
+      } else if (strcasecmp($confirmflag, 'Confirmed') === 0) {
+        $status = 'Confirmed';
+      } else {
+        $status = 'Not Confirmed';
+      }
+
 
       $users[$uid] = [
         'UID'      => $uid,
+        'Status'   => $status,
         'Username' => $DB->get_field('user', 'username', ['id' => $uid]) ?? 'N/A',
       ];
 
@@ -317,8 +323,18 @@ function printcourseData($formid, $columns, $page, $perpage, $visible, $dataform
 
       // Allowed file extensions
       $fileextensions = [
-        'pdf','jpg','jpeg','png','gif','doc','docx','xls','xlsx',
-        'ppt','pptx','zip'
+        'pdf',
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'zip'
       ];
 
       $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
@@ -340,9 +356,6 @@ function printcourseData($formid, $columns, $page, $perpage, $visible, $dataform
           $safeurl = s($url);
           $record->fieldvalue =
             '<a href="' . $safeurl . '">' . $filename . '</a>';
-        } else if (in_array($dataformat, ['excel', 'ods'])) {
-          $record->fieldvalue =
-            '=HYPERLINK("' . $url . '","' . $filename . '")';
         } else {
           $record->fieldvalue = $url;
         }
@@ -383,6 +396,7 @@ function get_dynamic_columns($tablename, $formid)
 
   // Extract fieldnames into an array
   $fields[] = 'UID';
+  $fields[] = 'Status';
   $fields[] = 'Username';
 
   foreach ($records as $record) {
@@ -628,7 +642,8 @@ function local_form_generate_signed_url($formid, $page = 'addform', $additional_
     'report' => '/local/form/report.php',
     'courselist' => '/local/form/courselist.php',
     'displayform' => '/local/form/displayform.php',
-    'nonregistered' => '/local/form/nonregistered.php'
+    'nonregistered' => '/local/form/nonregistered.php',
+    'report_courselist' => '/local/form/report_courselist.php'
 
   ];
 
@@ -929,4 +944,45 @@ function local_form_is_teacher_or_admin($userid = null)
   );
 
   return $DB->count_records_sql($sql, $params) > 0;
+}
+
+//LDap function to check if user exists in Active Directory
+function local_form_user_exists_in_ad($username)
+{
+  global $CFG;
+
+
+  $ldap_host = "103.225.204.25";
+  $ldap_port = 389;  
+
+  // Update these with your actual values from Moodle LDAP settings
+  $ldap_dn = "dc=lbsnaa,dc=gov,dc=in";  // Base DN
+  $ldap_user = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";  // Bind DN
+  $ldap_pass = "lbsnaa123";  // IMPORTANT: Add the actual password here
+
+  $conn = ldap_connect($ldap_host, $ldap_port);
+
+  if (!$conn) {
+    return false;
+  }
+
+  ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+  if (!ldap_bind($conn, $ldap_user, $ldap_pass)) {
+    return false;
+  }
+
+  $filter = "(sAMAccountName={$username})";
+
+  $result = ldap_search($conn, $ldap_dn, $filter);
+
+  if (!$result) {
+    return false;
+  }
+
+  $entries = ldap_get_entries($conn, $result);
+
+  ldap_close($conn);
+
+  return ($entries["count"] > 0);
 }

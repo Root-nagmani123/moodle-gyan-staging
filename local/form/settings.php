@@ -1,55 +1,54 @@
 <?php
+// /local/form/settings.php
 // This file is part of Moodle - http://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Strings for component 'local_form', language 'en', branch 'MOODLE_30_STABLE'
- *
- * @package   local_form
- * @author    hardeep.dagar@awzpact.com
- */
-
-defined('MOODLE_INTERNAL') || die;
+defined('MOODLE_INTERNAL') || die();
 
 if ($hassiteconfig) {
-    // Create the new setting page
-    $setting = new admin_settingpage('local_form', get_string('pluginname', 'local_form'));
-    
-    $name = 'local_form/formleftimage';
-    $title = get_string('formleftimage', 'local_form');
-    $description = get_string('formleftimagedesc', 'local_form');
-    $slider = new admin_setting_configstoredfile($name, $title, $description, 'formleftimage', 0,['maxfiles' => 1, 'accepted_types' => ['.jpg', '.png']]);
-    $setting->add($slider);
-    
 
-    $name = 'local_form/formrightimage';
-    $title = get_string('formrightimage', 'local_form');
-    $description = get_string('formrightimagedesc', 'local_form');
-    $slider = new admin_setting_configstoredfile($name, $title, $description, 'formrightimage', 0,['maxfiles' => 1, 'accepted_types' => ['.jpg', '.png']]);
-    $setting->add($slider);
+    // -------------------------------
+    // 1️⃣ Form Settings Page (Images + Page Title)
+    // -------------------------------
+    $settings = new admin_settingpage('local_form_settings', get_string('settings', 'local_form'));
 
-    $setting->add(new admin_setting_confightmleditor(
-        'local_form/formpagetitle',
-        new lang_string('formpagetitle', 'local_form'),
-        new lang_string('formpagetitledesc', 'local_form'),
-        '',
-    
+    // Left Image
+    $settings->add(new admin_setting_configstoredfile(
+        'local_form/formleftimage',
+        get_string('formleftimage', 'local_form'),
+        get_string('formleftimagedesc', 'local_form'),
+        'formleftimage',
+        0,
+        ['maxfiles' => 1, 'accepted_types' => ['.jpg', '.png']]
     ));
-    
-    
-    $ADMIN->add('localplugins', $setting);
-    $ADMIN->add('localplugins', new admin_externalpage('local_form_manageform', 'Manageforms', new moodle_url('/local/form/manageform.php')));   
 
+    // Right Image
+    $settings->add(new admin_setting_configstoredfile(
+        'local_form/formrightimage',
+        get_string('formrightimage', 'local_form'),
+        get_string('formrightimagedesc', 'local_form'),
+        'formrightimage',
+        0,
+        ['maxfiles' => 1, 'accepted_types' => ['.jpg', '.png']]
+    ));
+
+    // Page Title
+    $settings->add(new admin_setting_confightmleditor(
+        'local_form/formpagetitle',
+        get_string('formpagetitle', 'local_form'),
+        get_string('formpagetitledesc', 'local_form'),
+        ''
+    ));
+
+    // Add Settings page under "Local plugins"
+    $ADMIN->add('localplugins', $settings);
+
+    // -------------------------------
+    // 2️⃣ Manage Forms page (Admin-only)
+    // -------------------------------
+    $ADMIN->add('localplugins', new admin_externalpage(
+        'local_form_manageform',                  // Internal name
+        get_string('manageforms', 'local_form'), // Display name
+        new moodle_url('/local/form/manageform.php'),
+        'moodle/site:config'                      // Admin-only capability
+    ));
 }

@@ -1,6 +1,7 @@
 <?php
 
 $string['pluginname'] = 'Form';
+$string['manageforms'] = 'Manage Forms';
 $string['sno'] = 'S.no';
 $string['description'] = 'Description';
 $string['formname'] = 'Course Name';
@@ -19,7 +20,11 @@ $string['formpagetitle'] = 'Form Page Title';
 $string['formpagetitledesc'] = 'Add form page title';
 $string['displayform'] = 'Display Course';
 $string['view'] = 'view';
-
+$string['pluginname'] = 'Form Plugin';
+$string['settings'] = 'Settings';
+$string['manageforms'] = 'Manage Forms';
+$string['formpagetitle'] = 'Form Page Title';
+$string['formpagetitledesc'] = 'Set the title for the form page';
 $string['username'] = 'Enter Username';
 $string['email'] = 'Enter Email';
 $string['password'] = 'Enter Password';
@@ -35,7 +40,14 @@ $string['required'] = 'This field is required.';
 $string['registration'] = 'User Registration';
 $string['successform_submission'] = 'Form submitted successfully.';
 $string['usercreatedsuccess'] = 'User created successfully! Username: {username}, Password: {password}';
-
+$string['pluginname'] = 'Local Form';
+$string['formpagetitle'] = 'Form Page Title';
+$string['formpagetitledesc'] = 'Description for form page title';
+$string['formleftimage'] = 'Left Image';
+$string['formleftimagedesc'] = 'Image displayed on left side of form';
+$string['formrightimage'] = 'Right Image';
+$string['formrightimagedesc'] = 'Image displayed on right side of form';
+$string['manageforms'] = 'Manage Forms';
 $string['homepage'] = 'Home Page';
 $string['welcometomoodle'] = 'Welcome to Moodle';
 $string['welcomemessage'] = 'Welcome to LBSNAA!';
@@ -253,17 +265,6 @@ $string['contact_no'] = 'Contact Number';
 
 
 $string['access_denied_teachers_only'] = 'Access denied. This feature is only available to teachers and administrators.';
-// cohort management
-// $string['bulk_remove_from_cohort'] = 'Bulk Remove from Cohort';
-// $string['remove_selected_from_cohort'] = 'Remove Selected from Cohort';
-// $string['remove_cohort_warning'] = 'Selected users will be removed from the current cohort. This action cannot be undone.';
-// $string['confirm_remove_from_cohort'] = 'Are you sure you want to remove {count} user(s) from the cohort "{cohort}"? This action cannot be undone.';
-// $string['no_users_selected'] = 'No users selected. Please select at least one user.';
-// $string['select_all'] = 'Select All';
-// $string['users_removed_from_cohort'] = '{count} user(s) successfully removed from cohort "{cohort}".';
-// $string['users_failed_removal'] = 'Failed to remove {count} user(s).';
-// $string['current_cohort'] = 'Current Cohort';
-
 // Bulk actions
 $string['bulk_actions'] = 'Bulk Actions';
 $string['remove_selected_from_cohort'] = 'Remove Selected from Cohort';
@@ -272,6 +273,28 @@ $string['confirm_remove_from_cohort'] = 'Are you sure you want to remove the sel
 $string['users_removed_from_cohort'] = '{count} users have been removed from the cohort "{cohort}"';
 $string['users_failed_removal'] = 'Failed to remove {count} users';
 $string['no_users_selected'] = 'No users selected';
+
+$string['migration_interface'] = 'Moodle to Sargam Migration';
+$string['migrate_to_sargam'] = 'Migrate to Sargam';
+$string['select_moodle_columns'] = 'Select Moodle Columns';
+$string['select_sargam_columns'] = 'Select Sargam Columns';
+$string['column_mappings'] = 'Column Mappings';
+$string['execute_migration'] = 'Execute Migration';
+$string['test_connection'] = 'Test Connection';
+$string['validate_mappings'] = 'Validate Mappings';
+$string['suggest_mappings'] = 'Suggest Mappings';
+$string['clear_mappings'] = 'Clear All';
+$string['migration_success'] = 'Migration completed successfully';
+$string['migration_failed'] = 'Migration failed';
+$string['user_credentials'] = 'User Credentials';
+$string['student_master'] = 'Student Master';
+$string['course_enrollments'] = 'Course Enrollments';
+$string['migration_progress'] = 'Migration Progress';
+$string['migration_log'] = 'Migration Log';
+$string['users_selected'] = 'Users Selected for Migration';
+$string['no_users_selected'] = 'No users selected';
+$string['mapping_saved'] = 'Mappings saved successfully';
+$string['confirm_migration'] = 'Are you sure you want to migrate {$a} users to Sargam?';
 
 
 

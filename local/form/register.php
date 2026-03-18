@@ -7,11 +7,20 @@ class adduserform extends moodleform
 {
     function definition()
     {
-        global $USER;
+        global $USER, $DB;
         $mform = $this->_form;
+
+        $formid = $this->_customdata['formid'];
+        $formname = $DB->get_field('local_form', 'name', ['id' => $formid]);
+        // $formname = $this->_customdata['formname'];
 
         $mform->addElement('html', '
         <div class="form-instructions" style="background-color: #e8f5e8; border: 2px solid #4CAF50; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <div style="text-align:center; margin-bottom:12px;">
+         <span style="padding:6px 14px; border-radius:6px; font-size:20px; font-weight:bold;">
+        ' . $formname . '
+             </span>
+            </div>
             <h2 style="font-size: 20px; color: #2c3e50; margin-bottom: 15px; text-align: center;">
                 <i class="fa fa-user-plus" style="color: #4CAF50; margin-right: 10px;"></i>
                 CREDENTIAL CREATION FORM
@@ -76,7 +85,7 @@ class adduserform extends moodleform
                     Please use only personal email ID. Don\'t use post/designation based email ID.
                 </p>
             </div>');
-        
+
         // Email field
         $mform->addElement(
             'text',
@@ -312,6 +321,9 @@ if ($mform->is_cancelled()) {
     $plaintext_password = $data->password; // Keep the plaintext password
     $data->timemodified = time();
 
+    // Check if user exists in Active Directory (LDAP)
+    $exists_in_ad = local_form_user_exists_in_ad($data->username);
+
     // Check if user exists by email OR username (BOTH must be same user)
     $existing_by_username = $DB->get_record('user', ['username' => $data->username]);
     $existing_by_email = $DB->get_record('user', ['email' => $data->email]);
@@ -341,18 +353,32 @@ if ($mform->is_cancelled()) {
         $data->id = $existingUser->id;
 
         // Fetch the authentication method for the user
-        $auth_method = $DB->get_field('user', 'auth', ['id' => $data->id]);
+        // $auth_method = $DB->get_field('user', 'auth', ['id' => $data->id]);
 
-        if ($auth_method === 'ldap') {
-            // Switch to manual authentication
+        // if ($auth_method === 'ldap') {
+        //     // Switch to manual authentication
+        //     $data->auth = 'manual';
+
+        //     // Hash the new password and set it
+        //     $data->password = hash_internal_user_password($plaintext_password);
+
+        //     // echo "The user's authentication method has been switched to manual.";
+        // } else {
+        //     // For non-LDAP users, update the password if provided
+        //     if (!empty($data->password)) {
+        //         $data->password = hash_internal_user_password($data->password);
+        //     }
+        // }
+
+        //Ldap
+        if ($exists_in_ad) {
+            // User exists in AD → use LDAP authentication
+            $data->auth = 'ldap';
+            $data->password = 'not cached';
+        } else {
+            // Normal Moodle user
             $data->auth = 'manual';
 
-            // Hash the new password and set it
-            $data->password = hash_internal_user_password($plaintext_password);
-
-            // echo "The user's authentication method has been switched to manual.";
-        } else {
-            // For non-LDAP users, update the password if provided
             if (!empty($data->password)) {
                 $data->password = hash_internal_user_password($data->password);
             }
@@ -362,9 +388,9 @@ if ($mform->is_cancelled()) {
         $data->confirmed = $existingUser->confirmed;
         $data->mnethostid = $existingUser->mnethostid;
         $data->timecreated = $existingUser->timecreated;
-        
+
         $DB->update_record('user', $data);
-        
+
         $formuser = new stdClass();
         $formuser->userid = $data->id;
         $formuser->username = $data->username;
@@ -410,6 +436,15 @@ if ($mform->is_cancelled()) {
         $data->timecreated = time();
         $data->confirmed = 1; // Automatically confirm the user
         $data->mnethostid = 1;
+
+        //Ldap
+        if ($exists_in_ad) {
+            $data->auth = 'ldap';
+            $data->password = 'not cached';
+        } else {
+            $data->auth = 'manual';
+            $data->password = hash_internal_user_password($plaintext_password);
+        }
         $last_inserted_id = $DB->insert_record('user', $data);
 
         $formshortname = $DB->get_field('local_form', 'shortname', ['id' => $data->formid]);

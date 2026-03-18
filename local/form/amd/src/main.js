@@ -1,4 +1,4 @@
-define(['jquery', 'core/log'], function ($, log) {
+define(['jquery', 'core/config'], function ($, cfg) {
     return {
         init: function () {
             $(document).ready(function () {
@@ -123,7 +123,6 @@ define(['jquery', 'core/log'], function ($, log) {
 
             $(document).on('click', '#add_to_cohort_button', function () {
                 var country_id = $(this).val();
-                alert(country_id);
                 $.ajax({
                     type: "POST",
                     url: "ajax.php",
@@ -132,7 +131,6 @@ define(['jquery', 'core/log'], function ($, log) {
 
                     },
                     success: function (result) {
-                        alert(result);
                         $('#id_section').html(result);
                     },
                     error: function () {
@@ -181,7 +179,6 @@ define(['jquery', 'core/log'], function ($, log) {
                     var page = url.searchParams.get("page");
                     var urlParams = new URLSearchParams(window.location.search);
                     var formid = urlParams.get('formid');  // Extracts the formid from the URL
-                    // alert(formid);
                     $.ajax({
                         url: "ajax.php", // Adjust the URL as needed.
                         type: "POST",
@@ -214,7 +211,6 @@ define(['jquery', 'core/log'], function ($, log) {
 
                             },
                             success: function (data) {
-                                alert(data); // Show success message
                             },
                             error: function (xhr, status, error) {
                                 console.error("AJAX Request Error: " + error);
@@ -232,55 +228,164 @@ define(['jquery', 'core/log'], function ($, log) {
 
 
         form: function () {
-            $(document).ready(function () {
-                $(document).on('click', '#add_to_cohort_button', function () {
-                    // e.preventDefault();
-                    // Get selected dropdown value
-                    var cohortId = $('#quizviewfilter').val();
 
-                    // Get all checked checkboxes
+            $(document).off('click.removeusers')
+                .on('click.removeusers', '#add_to_cohort_button', function (e) {
+
+                    e.preventDefault();
+
+                    var cohortId = $('#quizviewfilter').val();
                     var selectedUsers = [];
+
                     $('.uidcheckbox:checked').each(function () {
                         selectedUsers.push($(this).val());
                     });
 
-                    // Ensure both dropdown and checkboxes have values
-                    if (selectedUsers.length === 0) {
+                    if (!selectedUsers.length) {
                         alert('Please select at least one user.');
                         return;
                     }
+
                     if (!cohortId) {
                         alert('Please select a cohort.');
                         return;
                     }
 
-                    // Send data via AJAX
                     $.ajax({
-                        type: "POST",
-                        url: "usercohort.php",
+                        type: 'POST',
+                        url: cfg.wwwroot + '/local/form/usercohort.php',
+                        dataType: 'json',
                         data: {
+                            sesskey: cfg.sesskey,
                             cohortId: cohortId,
                             selectedUsers: selectedUsers
                         },
-                        success: function (response) {
-                            // alert(response);
-                            var res = JSON.parse(response); // Parse the JSON response
+                        success: function (res) {
+
+                            console.log(res);
+
                             if (res.status === 'success') {
-                                alert(res.message);  // Show success message returned from PHP
-                                location.reload();  // Optionally reload the page (or update the UI as needed)
+
+                                alert(res.message);
+
+                                window.location.href = window.location.href;
+
                             } else {
-                                alert(res.message);  // Show error message returned from PHP
+                                alert(res.message);
                             }
                         },
-                        error: function (xhr, status, error) {
-                            console.error('Error:', error);
-                            alert('An error occurred while adding users to the cohort.');
+                        error: function (xhr) {
+
+                            console.log(xhr.responseText);
+                            alert('Server error. Check console.');
                         }
                     });
+
+                });
+        },
+
+        confirmtoggle: function () {
+
+            $(document).on('click', '.confirm_toggle', function () {
+
+                var button = $(this);
+                var uid = button.data('uid');
+                var time = button.data('time');
+                var currentStatus = button.data('status');
+
+                var newStatus = (currentStatus === 'Confirmed')
+                    ? 'Not Confirmed'
+                    : 'Confirmed';
+                $.ajax({
+                    type: "POST",
+                    url: cfg.wwwroot + '/local/form/toggle_confirm.php',
+                    dataType: "json",
+                    data: {
+                        action: 'toggleconfirm',
+                        uid: uid,
+                        timecreated: time,
+                        status: newStatus,
+                        sesskey: cfg.sesskey,
+                        formid: $('#ajax_formid').val(), // hidden input
+
+                    },
+                    success: function (res) {
+
+                        if (res.status === 'success') {
+
+                            button.data('status', newStatus);
+
+                            if (newStatus === 'Confirmed') {
+                                button.removeClass('btn-danger')
+                                    .addClass('btn-success')
+                                    .text('Confirmed');
+                            } else {
+                                button.removeClass('btn-success')
+                                    .addClass('btn-danger')
+                                    .text('Not Confirmed');
+            location.reload();
+                            }
+                        }
+                    }
                 });
 
             });
         },
+        filterrecords: function () {
 
+            function loadRecords(page = 0) {
+
+                $.ajax({
+                    type: "POST",
+                    url: cfg.wwwroot + '/local/form/toggle_confirm.php',
+                    dataType: "json",
+                    data: {
+                        sesskey: cfg.sesskey,
+                        action: 'loadrecords', // changed
+                        keyword: $('#table_search').val().trim(),
+                        formid: $('#ajax_formid').val(),
+                        page: page,
+                        perpage: parseInt($('#ajax_perpage').val()) || 50,
+                        cohortid: $('#ajax_cohortid').val(),
+                        token: $('#ajax_token').val()
+                    },
+
+                    beforeSend: function () {
+                        $('#records_container').html(
+                            '<div class="text-center p-3">Loading...</div>'
+                        );
+                    },
+
+                    success: function (response) {
+                        $('#records_container').html(response.html);
+                    },
+
+                    error: function () {
+                        $('#records_container').html(
+                            '<div class="alert alert-danger">Error loading data</div>'
+                        );
+                    }
+                });
+            }
+
+            /* APPLY */
+            $(document).on('click', '#apply_search', function () {
+                loadRecords(0);
+            });
+
+            /* RESET */
+            $(document).on('click', '#reset_search', function () {
+                $('#table_search').val('');
+                loadRecords(0);
+            });
+
+            /* ENTER */
+            $(document).on('keypress', '#table_search', function (e) {
+                if (e.which === 13) {
+                    loadRecords(0);
+                }
+            });
+
+        },
     };
 });

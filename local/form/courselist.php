@@ -46,6 +46,7 @@ $formid = 0;
 $cohortid = optional_param('cohortid', 0, PARAM_INT);
 $autofilter = optional_param('autofilter', 0, PARAM_INT);
 $show_nonregistered = optional_param('nonregistered', 0, PARAM_INT);
+$searchkeyword = optional_param('searchkeyword', '', PARAM_RAW);
 
 
 if (!empty($token)) {
@@ -106,6 +107,10 @@ if (!empty($token)) {
 }
 
 $PAGE->requires->js_call_amd('local_form/main', 'form');
+$PAGE->requires->js_call_amd('local_form/main', 'confirmtoggle');
+$PAGE->requires->js_call_amd('local_form/main', 'filterrecords');
+
+
 $PAGE->set_title(get_string('courselist', 'local_form') . ($form ? ' - ' . $form->name : ''));
 
 $page = optional_param('page', 0, PARAM_INT);
@@ -743,6 +748,39 @@ echo html_writer::tag(
 );
 echo html_writer::end_tag('div');
 
+// Hidden fields for AJAX filter
+echo html_writer::empty_tag('input', [
+    'type' => 'hidden',
+    'id' => 'ajax_formid',
+    'value' => $formid
+]);
+
+//hidden fields for AJAX filter - ensure cohortid is always included
+echo html_writer::empty_tag('input', [
+    'type' => 'hidden',
+    'id' => 'ajax_page',
+    'value' => $page
+]);
+$perpage = 50; // or any default value you want
+
+echo html_writer::empty_tag('input', [
+    'type' => 'hidden',
+    'id' => 'ajax_perpage',
+    'value' => $perpage
+]);
+
+echo html_writer::empty_tag('input', [
+    'type' => 'hidden',
+    'id' => 'ajax_cohortid',
+    'value' => $cohortid
+]);
+
+echo html_writer::empty_tag('input', [
+    'type' => 'hidden',
+    'id' => 'ajax_token',
+    'value' => $token
+]);
+
 echo html_writer::start_tag('div', array('id' => 'id_index', 'class' => 'catalog-content'));
 
 if ($show_nonregistered) {
@@ -750,10 +788,12 @@ if ($show_nonregistered) {
     echo $renderer->local_nonregistered_students($formid, $token, $page, $cohortid);
 } else {
     // Define page size
-    $perpage = 30; // You can adjust this number or make it configurable
+    $perpage = 50; // You can adjust this number or make it configurable
 
     // Pass the parameters to the renderer - let it handle all the database queries
-    echo $renderer->local_allcourselist(null, null, $page, $perpage, $formid, $token, $cohortid);
+    echo html_writer::start_div('', ['id' => 'records_container']);
+    echo $renderer->local_allcourselist(null, null, $page, $perpage, $formid, $token, $cohortid, $searchkeyword = '');
+    echo html_writer::end_div();
 }
 
 echo html_writer::end_tag('div'); // End catalog-content
@@ -767,7 +807,8 @@ echo html_writer::tag(
         'Cohort Management',
     array('class' => 'section-title')
 );
-echo $renderer->local_cohort();
+// echo $renderer->local_cohort();
+echo $renderer->local_cohort($cohortid);
 echo html_writer::end_tag('div');
 
 echo html_writer::end_tag('div'); // End courselist-container

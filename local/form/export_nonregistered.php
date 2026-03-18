@@ -123,9 +123,9 @@ $sql = "
 ";
 
 // Apply pagination if not exporting all
-if (!$exportall) {
-    $sql .= " LIMIT " . ($page * $perpage) . ", " . $perpage;
-}
+// if (!$exportall) {
+//     $sql .= " LIMIT " . ($page * $perpage) . ", " . $perpage;
+// }
 
 $students = $DB->get_records_sql($sql, $params);
 

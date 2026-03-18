@@ -283,7 +283,8 @@ echo $OUTPUT->header();
         /* CHANGED: Fixed 3-column grid for non-table fields */
         .form-grid-container {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* Always 3 columns */
+            grid-template-columns: repeat(3, 1fr);
+            /* Always 3 columns */
             gap: 16px;
             margin: 12px 0;
         }
@@ -488,7 +489,7 @@ echo $OUTPUT->header();
                 max-width: 100%;
                 margin: 10px;
             }
-            
+
             /* CHANGED: 2 columns on medium screens */
             .form-grid-container {
                 grid-template-columns: repeat(2, 1fr);
@@ -499,49 +500,50 @@ echo $OUTPUT->header();
             .form-main-container {
                 flex-direction: column;
             }
-            
+
             .form-sidebar {
                 width: 100%;
                 height: auto;
                 max-height: 250px;
             }
-            
+
             .form-content-area {
                 margin-left: 0;
                 padding: 15px;
             }
-            
+
             .custom-header-container {
                 padding: 10px 15px;
             }
-            
+
             .formpagetitle h2 {
                 font-size: 20px;
             }
         }
 
         @media (max-width: 768px) {
+
             /* CHANGED: 1 column on mobile */
             .form-grid-container {
                 grid-template-columns: 1fr;
             }
-            
+
             .horizontal-radio-group {
                 flex-direction: column;
                 gap: 8px;
             }
-            
+
             .form-table {
                 display: block;
                 overflow-x: auto;
             }
-            
+
             .section-title {
                 font-size: 16px;
                 padding: 8px 15px;
                 margin: -15px -15px 15px -15px;
             }
-            
+
             .form-section-container {
                 padding: 15px;
                 margin-bottom: 20px;
@@ -552,36 +554,36 @@ echo $OUTPUT->header();
             .form-content-area {
                 padding: 12px;
             }
-            
+
             .form-description {
                 padding: 12px;
                 font-size: 13px;
                 margin-bottom: 15px;
             }
-            
+
             .form-section-container {
                 padding: 12px;
             }
-            
+
             .form-grid-item {
                 padding: 12px;
             }
-            
+
             .submit-button {
                 width: 100%;
                 max-width: 250px;
                 padding: 10px 20px;
                 font-size: 13px;
             }
-            
+
             .custom-header-container {
                 padding: 8px 12px;
             }
-            
+
             .formpagetitle h2 {
                 font-size: 18px;
             }
-            
+
             .home_leftimage img,
             .home_rightimage img {
                 max-height: 35px;
@@ -693,10 +695,10 @@ echo $OUTPUT->header();
                                                         if (isset($fieldsBySection[$section->id][$i][$j])) {
                                                             $field = $fieldsBySection[$section->id][$i][$j];
                                                             $fieldName = "table_{$j}_{$i}";
-                                                            
+
                                                             echo '<div class="form-group">';
                                                             echo '<label>' . htmlspecialchars($field->field_title) . '</label>';
-                                                            
+
                                                             switch ($field->field_type) {
                                                                 case 'Text':
                                                                     echo '<input type="text" name="' . htmlspecialchars($fieldName) . '" ' . ($field->required ? 'required' : '') . ' />';
@@ -797,18 +799,19 @@ echo $OUTPUT->header();
                                 foreach ($submittedValues as $submitted) {
                                     $submittedMap[$submitted->fieldname] = $submitted->fieldvalue;
                                 }
-                                
+
                                 // Handle non-table format fields with fixed 3-column grid
                                 echo '<div class="form-grid-container">';
                                 foreach ($onlyfields as $field) {
                                     $value = isset($submittedMap[$field->formname]) ? htmlspecialchars($submittedMap[$field->formname]) : '';
                                     if ($field->section_id == $section->id) {
                                         echo '<div class="form-grid-item">';
-                                        $fieldName = "field_{$field->formname}";
-                                        
+                                        // Sanitize field name to remove spaces for HTML name
+                                        $sanitizedFormName = preg_replace('/\s+/', '_', trim($field->formname));
+                                        $fieldName = "field_{$sanitizedFormName}";
                                         echo '<div class="form-group">';
                                         echo '<label>' . htmlspecialchars($field->formlabel) . '</label>';
-                                        
+
                                         switch ($field->formtype) {
                                             case 'text':
                                                 echo '<input type="text" name="' . htmlspecialchars($fieldName) . '" value="' . $value . '" ' . ($field->required ? 'required' : '') . ' />';
@@ -821,14 +824,15 @@ echo $OUTPUT->header();
                                             case 'email':
                                                 echo '<input type="email" name="' . htmlspecialchars($fieldName) . '" value="' . $value . '" ' . ($field->required ? 'required' : '') . ' />';
                                                 break;
-
                                             case 'dropdown':
                                                 $options = explode(',', $field->fieldoption);
+                                                $value = isset($submittedMap[$sanitizedFormName]) ? htmlspecialchars($submittedMap[$sanitizedFormName]) : '';
                                                 echo '<select name="' . htmlspecialchars($fieldName) . '" ' . ($field->required ? 'required' : '') . '>';
-                                                echo '<option value="" disabled ' . ($value === '' ? 'selected' : '') . '>Select...</option>';
+                                                echo '<option value="" disabled ' . (empty($value) ? 'selected' : '') . '>Select...</option>';
                                                 foreach ($options as $option) {
-                                                    $selected = ($value === trim($option)) ? 'selected' : '';
-                                                    echo '<option value="' . htmlspecialchars(trim($option)) . '" ' . $selected . '>' . htmlspecialchars(trim($option)) . '</option>';
+                                                    $optionTrim = trim($option);
+                                                    $selected = (mb_strtolower($value) === mb_strtolower($optionTrim)) ? 'selected' : '';
+                                                    echo '<option value="' . htmlspecialchars($optionTrim) . '" ' . $selected . '>' . htmlspecialchars($optionTrim) . '</option>';
                                                 }
                                                 echo '</select>';
                                                 break;
@@ -837,11 +841,12 @@ echo $OUTPUT->header();
                                                 $options = explode(',', $field->fieldoption);
                                                 echo '<div class="radio-group-container">';
                                                 foreach ($options as $option) {
-                                                    $option = trim($option);
-                                                    $isChecked = ($value === $option) ? 'checked' : '';
+                                                    $optionTrim = trim($option);
+                                                    // compare lowercase for robustness
+                                                    $isChecked = (mb_strtolower($value) === mb_strtolower($optionTrim)) ? 'checked' : '';
                                                     echo '<div class="radio-option">';
-                                                    echo '<input type="radio" name="' . htmlspecialchars($field->formname) . '" value="' . htmlspecialchars($option) . '" ' . $isChecked . ' ' . ($field->required ? 'required' : '') . ' />';
-                                                    echo '<label>' . htmlspecialchars($option) . '</label>';
+                                                    echo '<input type="radio" name="' . htmlspecialchars($fieldName) . '" value="' . htmlspecialchars($optionTrim) . '" ' . $isChecked . ' ' . ($field->required ? 'required' : '') . ' />';
+                                                    echo '<label>' . htmlspecialchars($optionTrim) . '</label>';
                                                     echo '</div>';
                                                 }
                                                 echo '</div>';
@@ -865,22 +870,22 @@ echo $OUTPUT->header();
                                             case 'date':
                                                 echo '<input type="date" name="' . htmlspecialchars($fieldName) . '" value="' . $value . '" ' . ($field->required ? 'required' : '') . ' />';
                                                 break;
-                                                
+
                                             case 'time':
                                                 echo '<input type="time" name="' . htmlspecialchars($fieldName) . '" value="' . $value . '" ' . ($field->required ? 'required' : '') . ' />';
                                                 break;
-                                                
+
                                             case 'number':
                                                 echo '<input type="number" name="' . htmlspecialchars($fieldName) . '" value="' . $value . '" ' . ($field->required ? 'required' : '') . ' />';
                                                 break;
 
                                             case 'file':
                                                 echo '<input type="file" name="' . htmlspecialchars($fieldName) . '" ' . ($field->required ? 'required' : '') . ' />';
-                                                
+
                                                 if (!empty($value)) {
                                                     $file_url = new moodle_url('/local/form/pix/' . $value);
                                                     $file_extension = pathinfo($value, PATHINFO_EXTENSION);
-                                                    
+
                                                     echo '<div class="file-preview" id="file-preview-' . htmlspecialchars($fieldName) . '">';
                                                     if (in_array(strtolower($file_extension), ['jpg', 'jpeg', 'png', 'gif'])) {
                                                         echo '<img src="' . htmlspecialchars($file_url) . '" alt="Uploaded Image" style="max-width: 120px; max-height: 120px; margin-top: 10px; border-radius: 6px; border: 1px solid #ddd;" />';
@@ -899,7 +904,7 @@ echo $OUTPUT->header();
                                                 echo '<p style="color: #666; font-style: italic;">Unknown field type</p>';
                                                 break;
                                         }
-                                        
+
                                         echo '</div>';
                                         echo '</div>';
                                     }
@@ -920,7 +925,7 @@ echo $OUTPUT->header();
     </div>
 
     <script src="<?php echo $CFG->wwwroot; ?>/local/form/amd/src/main.js"></script>
-    
+
     <script>
         function previewImage(event, input) {
             const fileList = input.files;
@@ -944,7 +949,7 @@ echo $OUTPUT->header();
                 });
             }
         }
-        
+
         // Add Font Awesome icons if needed
         if (!document.querySelector('link[href*="font-awesome"]')) {
             const link = document.createElement('link');
@@ -954,6 +959,7 @@ echo $OUTPUT->header();
         }
     </script>
 </body>
+
 </html>
 
 <?php

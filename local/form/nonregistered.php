@@ -42,7 +42,7 @@ $token = optional_param('token', '', PARAM_RAW);
 $formid = optional_param('formid', 0, PARAM_INT);
 $cohortid = optional_param('cohortid', 0, PARAM_INT); // Changed from 'cohort' to 'cohortid'
 $page = optional_param('page', 0, PARAM_INT);
-$perpage = optional_param('perpage', 2, PARAM_INT); // Items per page
+$perpage = optional_param('perpage', 3, PARAM_INT); // Items per page
 
 if (!empty($token)) {
     $data = local_form_validate_token($token, 'nonregistered');
