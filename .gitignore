@@ -1,0 +1,47 @@
+# ========================
+# MOODLE IMPORTANT
+# ========================
+config.php
+
+/cache/
+/localcache/
+/temp/
+/trashdir/
+/sessions/
+
+# ========================
+# NODE / FRONTEND
+# ========================
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ========================
+# SYSTEM FILES
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# IDE FILES
+# ========================
+.idea/
+.vscode/
+
+# ========================
+# OPTIONAL (if used)
+# ========================
+.env
+.env.backup
+
+# ========================
+# PROJECT-SPECIFIC
+# ========================
+testsargam2_dump1811_20012026.sql
+docker-compose.yml
+/java-backup/
+/java-project/
+/nginx.conf
+/praposed-mess-management-sidebar-option.jpeg
+/LBSNAA/
+/SECURITY_MODULE_IMPLEMENTATION.md
