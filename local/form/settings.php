@@ -51,4 +51,38 @@ if ($hassiteconfig) {
         new moodle_url('/local/form/manageform.php'),
         'moodle/site:config'                      // Admin-only capability
     ));
+
+    // -------------------------------
+    // 3️⃣ LDAP Test Settings Page
+    // -------------------------------
+    $ldaptestpage = new admin_settingpage('local_form_ldaptest', get_string('ldaptest', 'local_form'));
+
+    // Instructions
+    $ldaptestpage->add(new admin_setting_heading(
+        'local_form/ldap_test_heading',
+        get_string('ldaptestheading', 'local_form'),
+        get_string('ldaptestdesc', 'local_form')
+    ));
+
+    // Username to test
+    $ldaptestpage->add(new admin_setting_configtext(
+        'local_form/ldap_test_username',
+        get_string('ldaptestusername', 'local_form'),
+        get_string('ldaptestusernamedesc', 'local_form'),
+        '',
+        PARAM_TEXT,
+        50
+    ));
+
+    // Test URL
+    $ldaptestpage->add(new admin_setting_heading(
+        'local_form/ldap_test_url',
+        get_string('ldaptesturl', 'local_form'),
+        '<a href="' . new moodle_url('/local/form/test_ldap.php') . '" target="_blank" class="btn btn-primary">' .
+            get_string('runldaptest', 'local_form') . '</a><br><br>
+        <small>' . get_string('ldaptesturldesc', 'local_form') . '</small>'
+    ));
+
+    // Add LDAP Test page
+    $ADMIN->add('localplugins', $ldaptestpage);
 }

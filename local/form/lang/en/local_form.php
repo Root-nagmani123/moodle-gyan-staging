@@ -296,6 +296,18 @@ $string['no_users_selected'] = 'No users selected';
 $string['mapping_saved'] = 'Mappings saved successfully';
 $string['confirm_migration'] = 'Are you sure you want to migrate {$a} users to Sargam?';
 
+//ldap strings
+$string['ldaptest'] = 'LDAP Test Settings';
+$string['ldaptestheading'] = 'LDAP User Test Configuration';
+$string['ldaptestdesc'] = 'Configure and test LDAP user lookup functionality';
+$string['ldaptestusername'] = 'Username to Test';
+$string['ldaptestusernamedesc'] = 'Enter the username you want to test in Active Directory';
+$string['ldaptestbutton'] = 'Test LDAP User';
+$string['ldaptesturl'] = 'Run LDAP Test';
+$string['runldaptest'] = 'Run Test Now';
+$string['ldaptesturldesc'] = 'Click the button above to run the LDAP test with the configured username';
+$string['ldapsampleusers'] = 'LDAP Sample Users';
+
 
 
 
