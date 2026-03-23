@@ -417,41 +417,41 @@ if ($mform->is_cancelled()) {
         }
     } else {
         // Insert new user
+        // Insert new user
         $plaintext_password = $data->password;
         $data->password = hash_internal_user_password($data->password);
         $data->timecreated = time();
-        $data->confirmed = 1; // Automatically confirm the user
+        $data->confirmed = 1;
         $data->mnethostid = 1;
+
         // Check if user exists in AD
         $exists_in_ad = local_form_user_exists_in_ad($data->username);
 
-        // If user does NOT exist in AD, create them in AD
         if (!$exists_in_ad) {
-            // Create user in Active Directory with phone (required)
+            // Try to create user in AD (matching Java implementation)
+            error_log("Attempting to create AD user: {$data->username}");
+
             $ad_created = local_form_create_ad_user(
                 $data->username,
                 $data->firstname,
                 $data->lastname,
                 $plaintext_password,
                 $data->email,
-                $data->phone1  // Phone number - REQUIRED
+                $data->phone1
             );
 
             if ($ad_created) {
-                // User was created in AD, so use LDAP auth
                 $data->auth = 'ldap';
                 $data->password = 'not cached';
-                error_log("User {$data->username} created in AD successfully");
+                error_log("SUCCESS: User {$data->username} created in AD");
             } else {
-                // Failed to create in AD, fall back to manual
                 $data->auth = 'manual';
-                $data->password = hash_internal_user_password($plaintext_password);
-                error_log("Failed to create user {$data->username} in AD, using manual auth");
+                error_log("FAILED: Could not create {$data->username} in AD, using manual auth");
             }
         } else {
-            // User exists in AD, use LDAP auth
             $data->auth = 'ldap';
             $data->password = 'not cached';
+            error_log("User {$data->username} already exists in AD, using LDAP auth");
         }
 
         $last_inserted_id = $DB->insert_record('user', $data);
