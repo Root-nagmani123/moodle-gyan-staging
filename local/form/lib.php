@@ -1007,145 +1007,186 @@ function local_form_is_teacher_or_admin($userid = null)
  * @param string $phone (required)
  * @return bool
  */
-function local_form_create_ad_user($username, $firstname, $lastname, $password, $email, $phone) {
-    
-    // Your actual LDAP Configuration
-    $ldap_server = "103.225.204.25";
-    $ldap_port = 389;
-    $bind_dn = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
-    $bind_password = "lbsnaa123";
-    $ldap_version = 3;
-    $timeout = 20; // 20 seconds timeout
-    
-    // Container path (from your Contexts setting)
-    $container = "cn=Users,dc=lbsnaa,dc=gov,dc=in";
-    
-    // Validate required fields
-    if (empty($phone)) {
-        error_log("Phone number is required to create AD user");
-        return false;
-    }
-    
-    if (empty($username) || empty($firstname) || empty($lastname) || empty($password) || empty($email)) {
-        error_log("Missing required fields for AD user creation");
-        return false;
-    }
-    
-    // Connect to LDAP server
-    $ldapconn = ldap_connect($ldap_server, $ldap_port);
-    if (!$ldapconn) {
-        error_log("Failed to connect to LDAP server: {$ldap_server}:{$ldap_port}");
-        return false;
-    }
-    
-    // Set LDAP options
-    ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, $ldap_version);
-    ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
-    ldap_set_option($ldapconn, LDAP_OPT_NETWORK_TIMEOUT, $timeout);
-    
-    // Bind to LDAP
-    $ldapbind = @ldap_bind($ldapconn, $bind_dn, $bind_password);
-    if (!$ldapbind) {
-        error_log("LDAP bind failed: " . ldap_error($ldapconn));
-        ldap_close($ldapconn);
-        return false;
-    }
-    
-    error_log("Connected and bound to LDAP successfully");
-    
-    // Prepare DN (Distinguished Name)
-    $givenname = $firstname . " " . $lastname;
-    $dn = "cn={$givenname},{$container}";
-    
-    // Encode password (UTF-16LE format with quotes)
-    $encoded_password = ldap_encode_password($password);
-    
-    // Prepare attributes (matching Java patterns with your config)
-    $userdata = [
-        // objectClass (like Java)
-        'objectClass' => ['top', 'person', 'organizationalPerson', 'user', 'inetOrgPerson'],
-        
-        // cn (Common Name)
-        'cn' => $givenname,
-        
-        // givenName (first name)
-        'givenName' => $firstname,
-        
-        // sn (last name)
-        'sn' => $lastname,
-        
-        // telephoneNumber (phone)
-        'telephoneNumber' => $phone,
-        
-        // mail (email)
-        'mail' => $email,
-        
-        // sAMAccountName (username - matches your user attribute)
-        'sAMAccountName' => $username,
-        
-        // userPrincipalName
-        'userPrincipalName' => "{$username}@lbsnaa.gov.in",
-        
-        // userAccountControl (Java used 553)
-        'userAccountControl' => '553',
-        
-        // pwdLastSet (-1 forces password change)
-        'pwdLastSet' => '-1',
-        
-        // unicodePwd (encoded password)
-        'unicodePwd' => $encoded_password,
-        
-        // Additional attributes
-        'displayName' => "{$firstname} {$lastname}",
-        'mobile' => $phone,
-        'homePhone' => $phone,
-        'instanceType' => '4',
-        'accountExpires' => '0'
-    ];
-    
-    // Create user in AD
-    error_log("Attempting to create AD user with DN: {$dn}");
-    $result = @ldap_add($ldapconn, $dn, $userdata);
-    
-    if (!$result) {
+function local_form_create_ad_user($username, $firstname, $lastname, $password, $email, $phone)
+{
+
+  // Your actual LDAP Configuration
+  $ldap_server = "103.225.204.25";
+  $ldap_port = 389;
+  $bind_dn = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
+  $bind_password = "lbsnaa123";
+  $ldap_version = 3;
+  $timeout = 200; // 200 seconds timeout
+
+  // Container path (from your Contexts setting)
+  // $container = "cn=Users,dc=lbsnaa,dc=gov,dc=in";  php container 
+  $container = "ou=FC97,ou=LBSNAA,dc=lbsnaa,dc=gov,dc=in"; // java container
+
+
+  // Validate required fields
+  if (empty($phone)) {
+    error_log("Phone number is required to create AD user");
+    return false;
+  }
+
+  if (empty($username) || empty($firstname) || empty($lastname) || empty($password) || empty($email)) {
+    error_log("Missing required fields for AD user creation");
+    return false;
+  }
+
+  // Connect to LDAP server
+  $ldapconn = ldap_connect($ldap_server, $ldap_port);
+  if (!$ldapconn) {
+    error_log("Failed to connect to LDAP server: {$ldap_server}:{$ldap_port}");
+    return false;
+  }
+
+  // Set LDAP options
+  ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, $ldap_version);
+  ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
+  ldap_set_option($ldapconn, LDAP_OPT_NETWORK_TIMEOUT, $timeout);
+
+  // Bind to LDAP
+  $ldapbind = @ldap_bind($ldapconn, $bind_dn, $bind_password);
+  if (!$ldapbind) {
+    error_log("LDAP bind failed: " . ldap_error($ldapconn));
+    ldap_close($ldapconn);
+    return false;
+  }
+
+  error_log("Connected and bound to LDAP successfully");
+
+  // Prepare DN (Distinguished Name)
+  $givenname = $firstname . " " . $lastname;
+  $dn = "cn={$givenname},{$container}";
+
+  // Encode password (UTF-16LE format with quotes)
+  $encoded_password = ldap_encode_password($password);
+
+  // Prepare attributes (matching Java patterns with your config)
+  $userdata = [
+    // objectClass (like Java)
+    'objectClass' => ['top', 'person', 'organizationalPerson', 'user', 'inetOrgPerson'],
+
+    // cn (Common Name)
+    'cn' => $givenname,
+
+    // givenName (first name)
+    'givenName' => $firstname,
+
+    // sn (last name)
+    'sn' => $lastname,
+
+    // telephoneNumber (phone)
+    'telephoneNumber' => $phone,
+
+    // mail (email)
+    'mail' => $email,
+
+    // sAMAccountName (username - matches your user attribute)
+    'sAMAccountName' => $username,
+
+    // userPrincipalName
+    'userPrincipalName' => "{$username}@lbsnaa.gov.in",
+
+    // userAccountControl (Java used 553)
+    'userAccountControl' => '553',
+
+    // pwdLastSet (-1 forces password change)
+    'pwdLastSet' => '-1',
+
+    // unicodePwd (encoded password)
+    'unicodePwd' => $encoded_password,
+
+    // Additional attributes
+    'displayName' => "{$firstname} {$lastname}",
+    'mobile' => $phone,
+    'homePhone' => $phone,
+    'instanceType' => '4',
+    'accountExpires' => '0'
+  ];
+
+  // Create user in AD
+  error_log("Attempting to create AD user with DN: {$dn}");
+  $result = @ldap_add($ldapconn, $dn, $userdata);
+
+  // if (!$result) {
+  //   $error = ldap_error($ldapconn);
+  //   $errno = ldap_errno($ldapconn);
+
+  //   // Error handling
+  //   switch ($errno) {
+  //     case 50:
+  //       error_log("LDAP Error: Insufficient access - Bind user lacks write permissions");
+  //       break;
+  //     case 19:
+  //       error_log("LDAP Error: Constraint violation - Password doesn't meet complexity requirements");
+  //       break;
+  //     case 68:
+  //       error_log("LDAP Error: Entry already exists - User already exists in AD");
+  //       break;
+  //     case 32:
+  //       error_log("LDAP Error: No such object - Container path invalid: {$container}");
+  //       break;
+  //     default:
+  //       error_log("LDAP Error: " . $error);
+  //   }
+  //   error_log("Error details: " . $error . " - DN: {$dn}");
+
+  //   ldap_close($ldapconn);
+  //   return false;
+  // }
+     if (!$result) {
         $error = ldap_error($ldapconn);
         $errno = ldap_errno($ldapconn);
         
-        // Error handling
+        // Enhanced error handling
         switch($errno) {
             case 50:
-                error_log("LDAP Error: Insufficient access - Bind user lacks write permissions");
+                error_log("=========================================");
+                error_log("LDAP Error 50: Insufficient access");
+                error_log("The bind user '{$bind_dn}' does NOT have permission to create users");
+                error_log("Solution: Grant 'Create User objects' permission to this user");
+                error_log("Container: {$container}");
+                error_log("=========================================");
                 break;
             case 19:
-                error_log("LDAP Error: Constraint violation - Password doesn't meet complexity requirements");
+                error_log("=========================================");
+                error_log("LDAP Error 19: Constraint violation");
+                error_log("Password doesn't meet AD complexity requirements");
+                error_log("Password must contain: uppercase, lowercase, numbers, special chars");
+                error_log("Minimum length: 7-14 characters (check AD policy)");
+                error_log("=========================================");
                 break;
             case 68:
-                error_log("LDAP Error: Entry already exists - User already exists in AD");
-                break;
-            case 32:
-                error_log("LDAP Error: No such object - Container path invalid: {$container}");
+                error_log("=========================================");
+                error_log("LDAP Error 68: Entry already exists");
+                error_log("User '{$username}' already exists in AD");
+                error_log("=========================================");
                 break;
             default:
-                error_log("LDAP Error: " . $error);
+                error_log("=========================================");
+                error_log("LDAP Error {$errno}: {$error}");
+                error_log("DN: {$dn}");
+                error_log("=========================================");
         }
-        error_log("Error details: " . $error . " - DN: {$dn}");
         
         ldap_close($ldapconn);
         return false;
     }
-    
-    error_log("AD user created successfully: {$username} (DN: {$dn})");
-    
-    // Enable the account
-    $modify = [
-        'userAccountControl' => '553',
-        'pwdLastSet' => '-1'
-    ];
-    ldap_modify($ldapconn, $dn, $modify);
-    
-    ldap_close($ldapconn);
-    
-    return true;
+
+  error_log("AD user created successfully: {$username} (DN: {$dn})");
+
+  // Enable the account
+  $modify = [
+    'userAccountControl' => '553',
+    'pwdLastSet' => '-1'
+  ];
+  ldap_modify($ldapconn, $dn, $modify);
+
+  ldap_close($ldapconn);
+
+  return true;
 }
 
 /**
@@ -1155,53 +1196,54 @@ function local_form_create_ad_user($username, $firstname, $lastname, $password, 
  * @param string $username
  * @return bool
  */
-function local_form_user_exists_in_ad($username) {
-    $ldap_server = "103.225.204.25";
-    $ldap_port = 389;
-    $bind_dn = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
-    $bind_password = "lbsnaa123";
-    $ldap_version = 3;
-    
-    // Your actual contexts
-    $containers = [
-        "cn=Users,dc=lbsnaa,dc=gov,dc=in"
-    ];
-    
-    $ldapconn = ldap_connect($ldap_server, $ldap_port);
-    if (!$ldapconn) {
-        error_log("Failed to connect to LDAP server: {$ldap_server}");
-        return false;
-    }
-    
-    ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, $ldap_version);
-    ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
-    ldap_set_option($ldapconn, LDAP_OPT_NETWORK_TIMEOUT, 20);
-    
-    $ldapbind = @ldap_bind($ldapconn, $bind_dn, $bind_password);
-    if (!$ldapbind) {
-        error_log("LDAP bind failed: " . ldap_error($ldapconn));
-        ldap_close($ldapconn);
-        return false;
-    }
-    
-    // Search by samaccountname (matches your user attribute)
-    $search_filter = "(&(objectClass=user)(samaccountname={$username}))";
-    
-    foreach ($containers as $container) {
-        $search_result = @ldap_search($ldapconn, $container, $search_filter, ['samaccountname', 'cn']);
-        
-        if ($search_result) {
-            $entries = ldap_get_entries($ldapconn, $search_result);
-            if ($entries['count'] > 0) {
-                ldap_close($ldapconn);
-                error_log("User {$username} found in container: {$container}");
-                return true;
-            }
-        }
-    }
-    
+function local_form_user_exists_in_ad($username)
+{
+  $ldap_server = "103.225.204.25";
+  $ldap_port = 389;
+  $bind_dn = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
+  $bind_password = "lbsnaa123";
+  $ldap_version = 3;
+
+  // Your actual contexts
+  $containers = [
+    "cn=Users,dc=lbsnaa,dc=gov,dc=in"
+  ];
+
+  $ldapconn = ldap_connect($ldap_server, $ldap_port);
+  if (!$ldapconn) {
+    error_log("Failed to connect to LDAP server: {$ldap_server}");
+    return false;
+  }
+
+  ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, $ldap_version);
+  ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
+  ldap_set_option($ldapconn, LDAP_OPT_NETWORK_TIMEOUT, 20);
+
+  $ldapbind = @ldap_bind($ldapconn, $bind_dn, $bind_password);
+  if (!$ldapbind) {
+    error_log("LDAP bind failed: " . ldap_error($ldapconn));
     ldap_close($ldapconn);
     return false;
+  }
+
+  // Search by samaccountname (matches your user attribute)
+  $search_filter = "(&(objectClass=user)(samaccountname={$username}))";
+
+  foreach ($containers as $container) {
+    $search_result = @ldap_search($ldapconn, $container, $search_filter, ['samaccountname', 'cn']);
+
+    if ($search_result) {
+      $entries = ldap_get_entries($ldapconn, $search_result);
+      if ($entries['count'] > 0) {
+        ldap_close($ldapconn);
+        error_log("User {$username} found in container: {$container}");
+        return true;
+      }
+    }
+  }
+
+  ldap_close($ldapconn);
+  return false;
 }
 
 /**
@@ -1211,17 +1253,18 @@ function local_form_user_exists_in_ad($username) {
  * @param string $password
  * @return string
  */
-function ldap_encode_password($password) {
-    // Add quotes around password (Java: "\"" + user_password + "\"")
-    $password_with_quotes = "\"" . $password . "\"";
-    
-    // Convert to UTF-16LE (Java: getBytes("UTF-16LE"))
-    $encoded = "";
-    for ($i = 0; $i < strlen($password_with_quotes); $i++) {
-        $encoded .= "{$password_with_quotes[$i]}\000";
-    }
-    
-    return $encoded;
+function ldap_encode_password($password)
+{
+  // Add quotes around password (Java: "\"" + user_password + "\"")
+  $password_with_quotes = "\"" . $password . "\"";
+
+  // Convert to UTF-16LE (Java: getBytes("UTF-16LE"))
+  $encoded = "";
+  for ($i = 0; $i < strlen($password_with_quotes); $i++) {
+    $encoded .= "{$password_with_quotes[$i]}\000";
+  }
+
+  return $encoded;
 }
 
 /**
@@ -1231,75 +1274,76 @@ function ldap_encode_password($password) {
  * @param array $data
  * @return bool
  */
-function local_form_update_ad_user($username, $data = []) {
-    $ldap_server = "103.225.204.25";
-    $ldap_port = 389;
-    $bind_dn = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
-    $bind_password = "lbsnaa123";
-    $ldap_version = 3;
-    $container = "cn=Users,dc=lbsnaa,dc=gov,dc=in";
-    
-    $ldapconn = ldap_connect($ldap_server, $ldap_port);
-    if (!$ldapconn) {
-        error_log("Failed to connect to LDAP server");
-        return false;
-    }
-    
-    ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, $ldap_version);
-    ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
-    
-    $ldapbind = @ldap_bind($ldapconn, $bind_dn, $bind_password);
-    if (!$ldapbind) {
-        error_log("LDAP bind failed: " . ldap_error($ldapconn));
-        ldap_close($ldapconn);
-        return false;
-    }
-    
-    $givenname = (isset($data['firstname']) && isset($data['lastname'])) 
-        ? $data['firstname'] . " " . $data['lastname'] 
-        : $username;
-    $dn = "cn={$givenname},{$container}";
-    
-    // Prepare modifications
-    $modifications = [];
-    
-    if (isset($data['firstname'])) {
-        $modifications['givenName'] = $data['firstname'];
-    }
-    
-    if (isset($data['lastname'])) {
-        $modifications['sn'] = $data['lastname'];
-    }
-    
-    if (isset($data['firstname']) && isset($data['lastname'])) {
-        $modifications['displayName'] = $data['firstname'] . ' ' . $data['lastname'];
-    }
-    
-    if (isset($data['email'])) {
-        $modifications['mail'] = $data['email'];
-    }
-    
-    if (isset($data['phone'])) {
-        $modifications['telephoneNumber'] = $data['phone'];
-        $modifications['mobile'] = $data['phone'];
-        $modifications['homePhone'] = $data['phone'];
-    }
-    
-    if (isset($data['password'])) {
-        $modifications['unicodePwd'] = ldap_encode_password($data['password']);
-        $modifications['pwdLastSet'] = '-1';
-    }
-    
-    if (!empty($modifications)) {
-        $result = ldap_modify($ldapconn, $dn, $modifications);
-        if (!$result) {
-            error_log("Failed to update AD user: " . ldap_error($ldapconn));
-            ldap_close($ldapconn);
-            return false;
-        }
-        error_log("AD user updated successfully: {$username}");
-    }
-    
+function local_form_update_ad_user($username, $data = [])
+{
+  $ldap_server = "103.225.204.25";
+  $ldap_port = 389;
+  $bind_dn = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
+  $bind_password = "lbsnaa123";
+  $ldap_version = 3;
+  $container = "cn=Users,dc=lbsnaa,dc=gov,dc=in";
+
+  $ldapconn = ldap_connect($ldap_server, $ldap_port);
+  if (!$ldapconn) {
+    error_log("Failed to connect to LDAP server");
+    return false;
+  }
+
+  ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, $ldap_version);
+  ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
+
+  $ldapbind = @ldap_bind($ldapconn, $bind_dn, $bind_password);
+  if (!$ldapbind) {
+    error_log("LDAP bind failed: " . ldap_error($ldapconn));
     ldap_close($ldapconn);
-    return true;
+    return false;
+  }
+
+  $givenname = (isset($data['firstname']) && isset($data['lastname']))
+    ? $data['firstname'] . " " . $data['lastname']
+    : $username;
+  $dn = "cn={$givenname},{$container}";
+
+  // Prepare modifications
+  $modifications = [];
+
+  if (isset($data['firstname'])) {
+    $modifications['givenName'] = $data['firstname'];
+  }
+
+  if (isset($data['lastname'])) {
+    $modifications['sn'] = $data['lastname'];
+  }
+
+  if (isset($data['firstname']) && isset($data['lastname'])) {
+    $modifications['displayName'] = $data['firstname'] . ' ' . $data['lastname'];
+  }
+
+  if (isset($data['email'])) {
+    $modifications['mail'] = $data['email'];
+  }
+
+  if (isset($data['phone'])) {
+    $modifications['telephoneNumber'] = $data['phone'];
+    $modifications['mobile'] = $data['phone'];
+    $modifications['homePhone'] = $data['phone'];
+  }
+
+  if (isset($data['password'])) {
+    $modifications['unicodePwd'] = ldap_encode_password($data['password']);
+    $modifications['pwdLastSet'] = '-1';
+  }
+
+  if (!empty($modifications)) {
+    $result = ldap_modify($ldapconn, $dn, $modifications);
+    if (!$result) {
+      error_log("Failed to update AD user: " . ldap_error($ldapconn));
+      ldap_close($ldapconn);
+      return false;
+    }
+    error_log("AD user updated successfully: {$username}");
+  }
+
+  ldap_close($ldapconn);
+  return true;
 }
