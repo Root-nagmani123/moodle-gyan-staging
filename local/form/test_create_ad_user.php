@@ -30,7 +30,7 @@ echo "</form><br><hr><br>";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // EXACT MATCH to Java LDAPAddUser class
-    $LDAPServer = "192.168.1.101";  // Java uses this IP
+    $LDAPServer = "103.225.204.25";  // Java uses this IP
     $LDAPPORT = 389;
     $loginDN = "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in";
     $password = "lbsnaa123";
@@ -204,7 +204,7 @@ if (isset($_POST['delete_user']) && !empty($_POST['username'])) {
     $containerName = "ou=FC97,ou=LBSNAA,dc=lbsnaa,dc=gov,dc=in";
     $dn = "cn={$givenname_to_delete},{$containerName}";
     
-    $ldapconn = ldap_connect("192.168.1.101", 389);
+    $ldapconn = ldap_connect("103.225.204.25", 389);
     ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, 3);
     ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
     $ldapbind = @ldap_bind($ldapconn, "cn=lbs,cn=Users,dc=lbsnaa,dc=gov,dc=in", "lbsnaa123");
