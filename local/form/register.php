@@ -370,20 +370,6 @@ if ($mform->is_cancelled()) {
         //     }
         // }
 
-        //Ldap
-        if ($exists_in_ad) {
-            // User exists in AD → use LDAP authentication
-            $data->auth = 'ldap';
-            $data->password = 'not cached';
-        } else {
-            // Normal Moodle user
-            $data->auth = 'manual';
-
-            if (!empty($data->password)) {
-                $data->password = hash_internal_user_password($data->password);
-            }
-        }
-
         // Preserve existing values for fields not in the form
         $data->confirmed = $existingUser->confirmed;
         $data->mnethostid = $existingUser->mnethostid;
@@ -436,15 +422,38 @@ if ($mform->is_cancelled()) {
         $data->timecreated = time();
         $data->confirmed = 1; // Automatically confirm the user
         $data->mnethostid = 1;
+        // Check if user exists in AD
+        $exists_in_ad = local_form_user_exists_in_ad($data->username);
 
-        //Ldap
-        if ($exists_in_ad) {
+        // If user does NOT exist in AD, create them in AD
+        if (!$exists_in_ad) {
+            // Create user in Active Directory with phone (required)
+            $ad_created = local_form_create_ad_user(
+                $data->username,
+                $data->firstname,
+                $data->lastname,
+                $plaintext_password,
+                $data->email,
+                $data->phone1  // Phone number - REQUIRED
+            );
+
+            if ($ad_created) {
+                // User was created in AD, so use LDAP auth
+                $data->auth = 'ldap';
+                $data->password = 'not cached';
+                error_log("User {$data->username} created in AD successfully");
+            } else {
+                // Failed to create in AD, fall back to manual
+                $data->auth = 'manual';
+                $data->password = hash_internal_user_password($plaintext_password);
+                error_log("Failed to create user {$data->username} in AD, using manual auth");
+            }
+        } else {
+            // User exists in AD, use LDAP auth
             $data->auth = 'ldap';
             $data->password = 'not cached';
-        } else {
-            $data->auth = 'manual';
-            $data->password = hash_internal_user_password($plaintext_password);
         }
+
         $last_inserted_id = $DB->insert_record('user', $data);
 
         $formshortname = $DB->get_field('local_form', 'shortname', ['id' => $data->formid]);

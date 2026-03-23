@@ -953,7 +953,7 @@ function local_form_user_exists_in_ad($username)
 
 
   $ldap_host = "103.225.204.25";
-  $ldap_port = 389;  
+  $ldap_port = 389;
 
   // Update these with your actual values from Moodle LDAP settings
   $ldap_dn = "dc=lbsnaa,dc=gov,dc=in";  // Base DN
@@ -985,4 +985,194 @@ function local_form_user_exists_in_ad($username)
   ldap_close($conn);
 
   return ($entries["count"] > 0);
+}
+
+/**
+ * Create user in Active Directory
+ * 
+ * @param string $username
+ * @param string $firstname
+ * @param string $lastname
+ * @param string $password
+ * @param string $email
+ * @param string $phone (required)
+ * @return bool
+ */
+function local_form_create_ad_user($username, $firstname, $lastname, $password, $email, $phone)
+{
+  global $CFG;
+
+  $ldap_config = get_config('auth_ldap');
+
+  if (empty($ldap_config->host_url) || empty($ldap_config->bind_dn) || empty($ldap_config->bind_pw)) {
+    error_log("LDAP not configured properly");
+    return false;
+  }
+
+  if (empty($phone)) {
+    error_log("Phone number is required to create AD user");
+    return false;
+  }
+
+  $ldapconn = ldap_connect($ldap_config->host_url);
+  if (!$ldapconn) {
+    error_log("Failed to connect to LDAP server: " . $ldap_config->host_url);
+    return false;
+  }
+
+  ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, 3);
+  ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
+
+  $ldapbind = @ldap_bind($ldapconn, $ldap_config->bind_dn, $ldap_config->bind_pw);
+  if (!$ldapbind) {
+    error_log("LDAP bind failed: " . ldap_error($ldapconn));
+    ldap_close($ldapconn);
+    return false;
+  }
+
+  // Prepare user data for AD
+  $dn = "cn={$username},cn=Users,dc=lbsnaa,dc=gov,dc=in";
+
+  // Base user data
+  $userdata = [
+    'cn' => $username,
+    'sn' => $lastname,
+    'givenName' => $firstname,
+    'displayName' => "{$firstname} {$lastname}",
+    'mail' => $email,
+    'userPrincipalName' => "{$username}@lbsnaa.gov.in",
+    'sAMAccountName' => $username,
+    'objectClass' => ['top', 'person', 'organizationalPerson', 'user'],
+    'userAccountControl' => 512, // Normal account
+    'instanceType' => 4,
+    'accountExpires' => 0, // Never expire
+    'telephoneNumber' => $phone, // Phone number
+    'mobile' => $phone, // Mobile phone (AD attribute)
+    'homePhone' => $phone, // Home phone
+    'otherTelephone' => $phone, // Other telephone
+  ];
+
+  // Add password (must be encoded for AD)
+  $userdata['unicodePwd'] = ldap_encode_password($password);
+
+  // Create user in AD
+  $result = ldap_add($ldapconn, $dn, $userdata);
+
+  if (!$result) {
+    error_log("Failed to create AD user: " . ldap_error($ldapconn) . " - DN: {$dn}");
+    ldap_close($ldapconn);
+    return false;
+  }
+
+  // Enable the account and set additional attributes
+  $modify = [
+    'userAccountControl' => 512, // Normal account
+    'pwdLastSet' => -1, // Force password change at next logon
+  ];
+
+  // Set password again after creation (AD requires this)
+  if (!empty($password)) {
+    $modify['unicodePwd'] = ldap_encode_password($password);
+  }
+
+  ldap_modify($ldapconn, $dn, $modify);
+
+  ldap_close($ldapconn);
+
+  error_log("AD user created successfully: {$username} with phone: {$phone}");
+  return true;
+}
+
+/**
+ * Encode password for Active Directory
+ * 
+ * @param string $password
+ * @return string
+ */
+function ldap_encode_password($password)
+{
+  // Password must be in UTF-16LE format enclosed in quotes
+  $password = "\"" . $password . "\"";
+  $encoded = "";
+  for ($i = 0; $i < strlen($password); $i++) {
+    $encoded .= "{$password[$i]}\000";
+  }
+  return $encoded;
+}
+
+/**
+ * Update existing user in Active Directory
+ * 
+ * @param string $username
+ * @param array $data
+ * @return bool
+ */
+function local_form_update_ad_user($username, $data = [])
+{
+  global $CFG;
+
+  $ldap_config = get_config('auth_ldap');
+
+  if (empty($ldap_config->host_url) || empty($ldap_config->bind_dn) || empty($ldap_config->bind_pw)) {
+    return false;
+  }
+
+  $ldapconn = ldap_connect($ldap_config->host_url);
+  if (!$ldapconn) {
+    return false;
+  }
+
+  ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, 3);
+  ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
+
+  $ldapbind = @ldap_bind($ldapconn, $ldap_config->bind_dn, $ldap_config->bind_pw);
+  if (!$ldapbind) {
+    ldap_close($ldapconn);
+    return false;
+  }
+
+  $dn = "cn={$username},cn=Users,dc=lbsnaa,dc=gov,dc=in";
+
+  // Prepare modifications
+  $modifications = [];
+
+  if (isset($data['firstname'])) {
+    $modifications['givenName'] = $data['firstname'];
+  }
+
+  if (isset($data['lastname'])) {
+    $modifications['sn'] = $data['lastname'];
+  }
+
+  if (isset($data['firstname']) && isset($data['lastname'])) {
+    $modifications['displayName'] = $data['firstname'] . ' ' . $data['lastname'];
+  }
+
+  if (isset($data['email'])) {
+    $modifications['mail'] = $data['email'];
+  }
+
+  if (isset($data['phone'])) {
+    $modifications['telephoneNumber'] = $data['phone'];
+    $modifications['mobile'] = $data['phone'];
+    $modifications['homePhone'] = $data['phone'];
+  }
+
+  if (isset($data['password'])) {
+    $modifications['unicodePwd'] = ldap_encode_password($data['password']);
+  }
+
+  if (!empty($modifications)) {
+    $result = ldap_modify($ldapconn, $dn, $modifications);
+    if (!$result) {
+      error_log("Failed to update AD user: " . ldap_error($ldapconn));
+      ldap_close($ldapconn);
+      return false;
+    }
+  }
+
+  ldap_close($ldapconn);
+
+  error_log("AD user updated successfully: {$username}");
+  return true;
 }
