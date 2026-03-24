@@ -933,7 +933,7 @@ function create_cohort_from_form($shortname, $formname)
         $cohort->description = $shortname;
         $cohort->descriptionformat = FORMAT_HTML;
         $cohort->contextid = $context->id;
-        $cohort->component = 'local_form';
+        $cohort->component = '';
         $cohort->timecreated = time();
         $cohort->timemodified = time();
         
