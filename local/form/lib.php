@@ -1020,7 +1020,9 @@ function local_form_create_ad_user($username, $firstname, $lastname, $password, 
 
   // Container path (from your Contexts setting)
   // $container = "cn=Users,dc=lbsnaa,dc=gov,dc=in";  php container 
-  $container = "ou=FC97,ou=LBSNAA,dc=lbsnaa,dc=gov,dc=in"; // java container
+  // $container = "ou=FC97,ou=LBSNAA,dc=lbsnaa,dc=gov,dc=in"; // java container
+  $container = "OU=MoodleUsers,OU=LBSNAA,DC=lbsnaa,DC=gov,DC=in";
+  $dn = "cn={$username},{$container}";
 
 
   // Validate required fields
@@ -1136,44 +1138,44 @@ function local_form_create_ad_user($username, $firstname, $lastname, $password, 
   //   ldap_close($ldapconn);
   //   return false;
   // }
-     if (!$result) {
-        $error = ldap_error($ldapconn);
-        $errno = ldap_errno($ldapconn);
-        
-        // Enhanced error handling
-        switch($errno) {
-            case 50:
-                error_log("=========================================");
-                error_log("LDAP Error 50: Insufficient access");
-                error_log("The bind user '{$bind_dn}' does NOT have permission to create users");
-                error_log("Solution: Grant 'Create User objects' permission to this user");
-                error_log("Container: {$container}");
-                error_log("=========================================");
-                break;
-            case 19:
-                error_log("=========================================");
-                error_log("LDAP Error 19: Constraint violation");
-                error_log("Password doesn't meet AD complexity requirements");
-                error_log("Password must contain: uppercase, lowercase, numbers, special chars");
-                error_log("Minimum length: 7-14 characters (check AD policy)");
-                error_log("=========================================");
-                break;
-            case 68:
-                error_log("=========================================");
-                error_log("LDAP Error 68: Entry already exists");
-                error_log("User '{$username}' already exists in AD");
-                error_log("=========================================");
-                break;
-            default:
-                error_log("=========================================");
-                error_log("LDAP Error {$errno}: {$error}");
-                error_log("DN: {$dn}");
-                error_log("=========================================");
-        }
-        
-        ldap_close($ldapconn);
-        return false;
+  if (!$result) {
+    $error = ldap_error($ldapconn);
+    $errno = ldap_errno($ldapconn);
+
+    // Enhanced error handling
+    switch ($errno) {
+      case 50:
+        error_log("=========================================");
+        error_log("LDAP Error 50: Insufficient access");
+        error_log("The bind user '{$bind_dn}' does NOT have permission to create users");
+        error_log("Solution: Grant 'Create User objects' permission to this user");
+        error_log("Container: {$container}");
+        error_log("=========================================");
+        break;
+      case 19:
+        error_log("=========================================");
+        error_log("LDAP Error 19: Constraint violation");
+        error_log("Password doesn't meet AD complexity requirements");
+        error_log("Password must contain: uppercase, lowercase, numbers, special chars");
+        error_log("Minimum length: 7-14 characters (check AD policy)");
+        error_log("=========================================");
+        break;
+      case 68:
+        error_log("=========================================");
+        error_log("LDAP Error 68: Entry already exists");
+        error_log("User '{$username}' already exists in AD");
+        error_log("=========================================");
+        break;
+      default:
+        error_log("=========================================");
+        error_log("LDAP Error {$errno}: {$error}");
+        error_log("DN: {$dn}");
+        error_log("=========================================");
     }
+
+    ldap_close($ldapconn);
+    return false;
+  }
 
   error_log("AD user created successfully: {$username} (DN: {$dn})");
 
