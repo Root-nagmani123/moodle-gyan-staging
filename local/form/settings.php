@@ -85,4 +85,56 @@ if ($hassiteconfig) {
 
     // Add LDAP Test page
     $ADMIN->add('localplugins', $ldaptestpage);
+
+    // -------------------------------
+    // 4️⃣ Migration DB Settings
+    // -------------------------------
+    $migrationsettings = new admin_settingpage('local_form_migrationdb', get_string('migrationdbsettings', 'local_form'));
+
+    // DB Host
+    $migrationsettings->add(new admin_setting_configtext(
+        'local_form/migration_db_host',
+        get_string('migrationdbhost', 'local_form'),
+        get_string('migrationdbhostdesc', 'local_form'),
+        '',
+        PARAM_TEXT
+    ));
+
+    // DB Port
+    $migrationsettings->add(new admin_setting_configtext(
+        'local_form/migration_db_port',
+        get_string('migrationdbport', 'local_form'),
+        get_string('migrationdbportdesc', 'local_form'),
+        '3306',
+        PARAM_INT
+    ));
+
+    // DB Name
+    $migrationsettings->add(new admin_setting_configtext(
+        'local_form/migration_db_name',
+        get_string('migrationdbname', 'local_form'),
+        get_string('migrationdbnamedesc', 'local_form'),
+        '',
+        PARAM_TEXT
+    ));
+
+    // DB Username
+    $migrationsettings->add(new admin_setting_configtext(
+        'local_form/migration_db_user',
+        get_string('migrationdbuser', 'local_form'),
+        get_string('migrationdbuserdesc', 'local_form'),
+        '',
+        PARAM_TEXT
+    ));
+
+    // DB Password
+    $migrationsettings->add(new admin_setting_configpasswordunmask(
+        'local_form/migration_db_pass',
+        get_string('migrationdbpass', 'local_form'),
+        get_string('migrationdbpassdesc', 'local_form'),
+        ''
+    ));
+
+    // Add page
+    $ADMIN->add('localplugins', $migrationsettings);
 }

@@ -308,39 +308,20 @@ $string['runldaptest'] = 'Run Test Now';
 $string['ldaptesturldesc'] = 'Click the button above to run the LDAP test with the configured username';
 $string['ldapsampleusers'] = 'LDAP Sample Users';
 
+//migration strings
+$string['migrationdbsettings'] = 'Migration DB Settings';
 
+$string['migrationdbhost'] = 'DB Host';
+$string['migrationdbhostdesc'] = 'Enter database host (Azure/MySQL)';
 
+$string['migrationdbport'] = 'DB Port';
+$string['migrationdbportdesc'] = 'Default: 3306';
 
+$string['migrationdbname'] = 'Database Name';
+$string['migrationdbnamedesc'] = 'Enter database name';
 
+$string['migrationdbuser'] = 'Database Username';
+$string['migrationdbuserdesc'] = 'Enter DB username';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+$string['migrationdbpass'] = 'Database Password';
+$string['migrationdbpassdesc'] = 'Enter DB password';

@@ -22,23 +22,14 @@ if (!function_exists('local_form_is_teacher_or_admin') || !local_form_is_teacher
     exit;
 }
 
-/* Azure DB Config */
+
 $sargam_config = [
-    'host' => 'db-centcom-staging-cin.mysql.database.azure.com',
-    'port' => 3306,
-    'database' => 'staging_sargam_db',
-    'username' => 'staging_sargam',
-    'password' => 'Welcome@#2027'
+    'host'     => get_config('local_form', 'migration_db_host'),
+    'port'     => get_config('local_form', 'migration_db_port'),
+    'database' => get_config('local_form', 'migration_db_name'),
+    'username' => get_config('local_form', 'migration_db_user'),
+    'password' => get_config('local_form', 'migration_db_pass'),
 ];
-
-
-// $sargam_config = [
-//     'host' => 'localhost',
-//     'port' => 3306,
-//     'database' => 'sargam',
-//     'username' => 'hardeep',
-//     'password' => 'phpmyadmin'
-// ];
 
 try {
 
@@ -128,7 +119,6 @@ try {
         'tables_found' => $existing_tables,
         'debug_log' => $debug
     ]);
-
 } catch (Exception $e) {
 
     $debug[] = "Exception: " . $e->getMessage();
