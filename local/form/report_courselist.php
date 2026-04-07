@@ -42,6 +42,8 @@ $cohortid = optional_param('cohortid', 0, PARAM_INT);
 $autofilter = optional_param('autofilter', 0, PARAM_INT);
 $show_nonregistered = optional_param('nonregistered', 0, PARAM_INT);
 $page = optional_param('page', 0, PARAM_INT);
+$searchkeyword = optional_param('searchkeyword', '', PARAM_RAW);
+$confirmfilter = optional_param('confirmfilter', '', PARAM_RAW);
 
 // ORIGINAL CODE - PRESERVED FOR FUTURE REFERENCE
 // Token validation logic
@@ -405,8 +407,11 @@ if ($cohortid > 0) {
 /* =========================================================
    STATISTICS CALCULATION - FORMID BASED COUNTS (ORIGINAL LOGIC)
    ========================================================= */
+/* =========================================================
+   STATISTICS CALCULATION - FIXED FOR PROPER NON-REGISTERED COUNTS
+   ========================================================= */
 if ($cohortid > 0) {
-    // Count distinct users who submitted the form and are in the selected cohort
+    // Get registered count for specific cohort
     $registered_count = $DB->count_records_sql(
         "SELECT COUNT(DISTINCT fs.uid)
            FROM {form_submissions} fs
@@ -416,10 +421,18 @@ if ($cohortid > 0) {
         ['formid' => $formid, 'cohortid' => $cohortid]
     );
     
-    // For cohort filter, total students = registered count (original logic)
-    $total_students = $registered_count;
+    // FIX: Get total students in specific cohort (all cohort members)
+    $total_students = $DB->count_records_sql(
+        "SELECT COUNT(DISTINCT cm.userid)
+           FROM {cohort_members} cm
+           JOIN {user} u ON u.id = cm.userid
+          WHERE cm.cohortid = :cohortid
+            AND u.deleted = 0
+            AND u.suspended = 0",
+        ['cohortid' => $cohortid]
+    );
 } else {
-    // Count distinct users who submitted the form (all submissions)
+    // Get registered count for all cohorts
     $registered_count = $DB->count_records_sql(
         "SELECT COUNT(DISTINCT uid)
            FROM {form_submissions}
@@ -427,12 +440,19 @@ if ($cohortid > 0) {
         ['formid' => $formid]
     );
     
-    // For no cohort filter, total students = registered count (original logic)
-    $total_students = $registered_count;
+    // FIX: Get total students in all cohorts
+    $total_students = $DB->count_records_sql(
+        "SELECT COUNT(DISTINCT cm.userid)
+           FROM {cohort_members} cm
+           JOIN {user} u ON u.id = cm.userid
+          WHERE u.deleted = 0
+            AND u.suspended = 0",
+        []
+    );
 }
 
-// ORIGINAL LOGIC: non_registered_count is set to 0
-$non_registered_count = 0;
+// FIX: Calculate non_registered_count properly
+$non_registered_count = max(0, $total_students - $registered_count);
 
 /* =========================================================
    STAT CARDS
@@ -512,8 +532,8 @@ if ($show_nonregistered) {
     // Show non-registered students page
     echo $renderer->local_nonregistered_students($formid, $token, $page, $cohortid);
 } else {
-    // Show registered students list with pagination (30 per page)
-    echo $renderer->local_allcourselist(null, null, $page, 30, $formid, $token, $cohortid);
+    // Show registered students list with pagination (50 per page)
+    echo $renderer->local_report_courselist(null, null, $page, 50, $formid, $token, $cohortid, $searchkeyword);
 }
 
 echo html_writer::end_tag('div'); // End id_index

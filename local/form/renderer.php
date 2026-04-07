@@ -516,7 +516,7 @@ class local_form_renderer extends plugin_renderer_base
     }
 
 
-   
+
 
     // public function local_allcourselist($records = null, $recordcount = null, $page = 0, $perpage = 10, $formid = 0, $token = '', $cohortid = 0)
     // {
@@ -809,105 +809,105 @@ class local_form_renderer extends plugin_renderer_base
     //     return $o;
     // }
 
-   public function local_allcourselist($records = null, $recordcount = null, $page = 0, $perpage = 10, $formid = 0, $token = '', $cohortid = 0, $searchkeyword = '', $confirmfilter = '' )
-{
-    $o = '';
-    global $DB, $OUTPUT, $USER;
+    public function local_allcourselist($records = null, $recordcount = null, $page = 0, $perpage = 10, $formid = 0, $token = '', $cohortid = 0, $searchkeyword = '', $confirmfilter = '')
+    {
+        $o = '';
+        global $DB, $OUTPUT, $USER;
 
-    // Token handling
-    if (empty($token)) {
-        $token = local_form_generate_signed_url($formid, 'courselist');
-        if (strpos($token, 'token=') !== false) {
-            $parts = parse_url($token);
-            parse_str($parts['query'] ?? '', $query);
-            $token = $query['token'] ?? '';
+        // Token handling
+        if (empty($token)) {
+            $token = local_form_generate_signed_url($formid, 'courselist');
+            if (strpos($token, 'token=') !== false) {
+                $parts = parse_url($token);
+                parse_str($parts['query'] ?? '', $query);
+                $token = $query['token'] ?? '';
+            }
+        } else {
+            if (strpos($token, 'token=') !== false) {
+                $parts = parse_url($token);
+                parse_str($parts['query'] ?? '', $query);
+                $token = $query['token'] ?? '';
+            }
         }
-    } else { 
-        if (strpos($token, 'token=') !== false) {
-            $parts = parse_url($token);
-            parse_str($parts['query'] ?? '', $query);
-            $token = $query['token'] ?? '';
+
+        // ================= SQL Building =================
+        $sql_params = [
+            'formid' => $formid,
+            'visible' => 1
+        ];
+
+        $sql_joins = '';
+        $sql_where = 'fs.formid = :formid AND fs.visible = :visible';
+        echo $confirmfilter;
+        // ================= CONFIRM FILTER LOGIC =================
+        if (!empty($confirmfilter)) {
+
+            if ($confirmfilter === 'Not Confirmed') {
+
+                $sql_where .= " AND (fs.confirmflag = :confirmflag OR fs.confirmflag IS NULL)";
+                $sql_params['confirmflag'] = 'Not Confirmed';
+            } else if ($confirmfilter === 'Confirmed') {
+
+                $sql_where .= " AND fs.confirmflag = :confirmflag";
+                $sql_params['confirmflag'] = 'Confirmed';
+            }
         }
-    }
 
-    // ================= SQL Building =================
-    $sql_params = [
-        'formid' => $formid,
-        'visible' => 1
-    ];
+        // ================= SEARCH LOGIC =================
+        // if (!empty($searchkeyword)) {
 
-    $sql_joins = '';
-    $sql_where = 'fs.formid = :formid AND fs.visible = :visible';
-echo $confirmfilter;
-       // ================= CONFIRM FILTER LOGIC =================
-    if (!empty($confirmfilter)) {
+        //     $sql_where .= " AND (
+        //         fs.uid IN (
+        //             SELECT u.id FROM {user} u
+        //             WHERE u.username LIKE :search1
+        //                OR u.firstname LIKE :search2
+        //                OR u.lastname LIKE :search3
+        //                OR u.email LIKE :search4
+        //         )
+        //         OR EXISTS (
+        //             SELECT 1
+        //             FROM {form_submissions} fs2
+        //             WHERE fs2.uid = fs.uid
+        //               AND fs2.formid = fs.formid
+        //               AND fs2.visible = 1
+        //               AND fs2.fieldvalue LIKE :search5
+        //         )
+        //     )";
 
-        if ($confirmfilter === 'Not Confirmed') {
+        //     $like = '%' . $searchkeyword . '%';
 
-            $sql_where .= " AND (fs.confirmflag = :confirmflag OR fs.confirmflag IS NULL)";
-            $sql_params['confirmflag'] = 'Not Confirmed';
+        //     $sql_params['search1'] = $like;
+        //     $sql_params['search2'] = $like;
+        //     $sql_params['search3'] = $like;
+        //     $sql_params['search4'] = $like;
+        //     $sql_params['search5'] = $like;
+        // }
+        if (!empty($searchkeyword)) {
 
-        } else if ($confirmfilter === 'Confirmed') {
+            $keywordtrim = trim($searchkeyword);
 
-            $sql_where .= " AND fs.confirmflag = :confirmflag";
-            $sql_params['confirmflag'] = 'Confirmed';
-        }
-    }
+            // ============================================
+            // EXACT STATUS SEARCH
+            // ============================================
+            if (
+                strcasecmp($keywordtrim, 'Confirmed') === 0 ||
+                strcasecmp($keywordtrim, 'Not Confirmed') === 0
+            ) {
 
-    // ================= SEARCH LOGIC =================
-// if (!empty($searchkeyword)) {
+                $sql_where .= " AND fs.confirmflag = :statussearch";
+                $sql_params['statussearch'] =
+                    (strcasecmp($keywordtrim, 'Confirmed') === 0)
+                    ? 'Confirmed'
+                    : 'Not Confirmed';
 
-//     $sql_where .= " AND (
-//         fs.uid IN (
-//             SELECT u.id FROM {user} u
-//             WHERE u.username LIKE :search1
-//                OR u.firstname LIKE :search2
-//                OR u.lastname LIKE :search3
-//                OR u.email LIKE :search4
-//         )
-//         OR EXISTS (
-//             SELECT 1
-//             FROM {form_submissions} fs2
-//             WHERE fs2.uid = fs.uid
-//               AND fs2.formid = fs.formid
-//               AND fs2.visible = 1
-//               AND fs2.fieldvalue LIKE :search5
-//         )
-//     )";
+                // Save status for later use
+                $statusfilter = $sql_params['statussearch'];
+            } else {
 
-//     $like = '%' . $searchkeyword . '%';
-
-//     $sql_params['search1'] = $like;
-//     $sql_params['search2'] = $like;
-//     $sql_params['search3'] = $like;
-//     $sql_params['search4'] = $like;
-//     $sql_params['search5'] = $like;
-// }
-if (!empty($searchkeyword)) {
-
-    $keywordtrim = trim($searchkeyword);
-
-    // ============================================
-    // EXACT STATUS SEARCH
-    // ============================================
-    if (strcasecmp($keywordtrim, 'Confirmed') === 0 ||
-        strcasecmp($keywordtrim, 'Not Confirmed') === 0) {
-
-        $sql_where .= " AND fs.confirmflag = :statussearch";
-        $sql_params['statussearch'] =
-            (strcasecmp($keywordtrim, 'Confirmed') === 0)
-            ? 'Confirmed'
-            : 'Not Confirmed';
-
-        // Save status for later use
-        $statusfilter = $sql_params['statussearch'];
-
-    } else {
-
-        // ============================================
-        // NORMAL LIKE SEARCH
-        // ============================================
-        $sql_where .= " AND (
+                // ============================================
+                // NORMAL LIKE SEARCH
+                // ============================================
+                $sql_where .= " AND (
             fs.uid IN (
                 SELECT u.id FROM {user} u
                 WHERE u.username LIKE :search1
@@ -918,380 +918,378 @@ if (!empty($searchkeyword)) {
             OR fs.fieldvalue LIKE :search5
         )";
 
-        $like = '%' . $searchkeyword . '%';
+                $like = '%' . $searchkeyword . '%';
 
-        $sql_params['search1'] = $like;
-        $sql_params['search2'] = $like;
-        $sql_params['search3'] = $like;
-        $sql_params['search4'] = $like;
-        $sql_params['search5'] = $like;
-    }
-}
+                $sql_params['search1'] = $like;
+                $sql_params['search2'] = $like;
+                $sql_params['search3'] = $like;
+                $sql_params['search4'] = $like;
+                $sql_params['search5'] = $like;
+            }
+        }
 
-    if ($cohortid > 0) {
-        $sql_joins = 'INNER JOIN {cohort_members} cm ON fs.uid = cm.userid';
-        $sql_where .= ' AND cm.cohortid = :cohortid';
-        $sql_params['cohortid'] = $cohortid;
-    }
+        if ($cohortid > 0) {
+            $sql_joins = 'INNER JOIN {cohort_members} cm ON fs.uid = cm.userid';
+            $sql_where .= ' AND cm.cohortid = :cohortid';
+            $sql_params['cohortid'] = $cohortid;
+        }
 
-    $count_sql = "SELECT COUNT(DISTINCT fs.uid)
+        $count_sql = "SELECT COUNT(DISTINCT fs.uid)
                   FROM {form_submissions} fs 
                   $sql_joins 
                   WHERE $sql_where";
 
-    $total_users = $DB->count_records_sql($count_sql, $sql_params);
+        $total_users = $DB->count_records_sql($count_sql, $sql_params);
 
-    // $user_ids_sql = "SELECT DISTINCT fs.uid
-    //                  FROM {form_submissions} fs 
-    //                  $sql_joins 
-    //                  WHERE $sql_where
-    //                  ORDER BY fs.timecreated";
+        // $user_ids_sql = "SELECT DISTINCT fs.uid
+        //                  FROM {form_submissions} fs 
+        //                  $sql_joins 
+        //                  WHERE $sql_where
+        //                  ORDER BY fs.timecreated";
 
-    $user_ids_sql = "SELECT fs.uid, MAX(fs.timecreated) as lastsubmitted
+        $user_ids_sql = "SELECT fs.uid, MAX(fs.timecreated) as lastsubmitted
                      FROM {form_submissions} fs 
                      $sql_joins 
                      WHERE $sql_where
                      GROUP BY fs.uid
                      ORDER BY lastsubmitted DESC";
 
-    $paged_user_records = $DB->get_records_sql(
-        $user_ids_sql,
-        $sql_params,
-        $page * $perpage,
-        $perpage
-    );
+        $paged_user_records = $DB->get_records_sql(
+            $user_ids_sql,
+            $sql_params,
+            $page * $perpage,
+            $perpage
+        );
 
-    $paged_user_ids = array_keys($paged_user_records);
+        $paged_user_ids = array_keys($paged_user_records);
 
-    if (empty($paged_user_ids)) {
-        $o .= html_writer::tag('div', 'No records found', ['class' => 'alert alert-info']);
-        return $o;
-    }
+        if (empty($paged_user_ids)) {
+            $o .= html_writer::tag('div', 'No records found', ['class' => 'alert alert-info']);
+            return $o;
+        }
 
-    // ================= Fetch User Data =================
-    $placeholders = [];
-    $data_params = ['formid' => $formid, 'visible' => 1];
-    $i = 0;
+        // ================= Fetch User Data =================
+        $placeholders = [];
+        $data_params = ['formid' => $formid, 'visible' => 1];
+        $i = 0;
 
-    foreach ($paged_user_ids as $uid) {
-        $param = 'uid' . $i;
-        $placeholders[] = ':' . $param;
-        $data_params[$param] = $uid;
-        $i++;
-    }
+        foreach ($paged_user_ids as $uid) {
+            $param = 'uid' . $i;
+            $placeholders[] = ':' . $param;
+            $data_params[$param] = $uid;
+            $i++;
+        }
 
-    $in_clause = implode(',', $placeholders);
+        $in_clause = implode(',', $placeholders);
 
-    // $data_sql = "SELECT fs.* 
-    //              FROM {form_submissions} fs 
-    //              WHERE fs.formid = :formid 
-    //                AND fs.visible = :visible 
-    //                AND fs.uid IN ($in_clause)
-    //              ORDER BY fs.timecreated";
+        // $data_sql = "SELECT fs.* 
+        //              FROM {form_submissions} fs 
+        //              WHERE fs.formid = :formid 
+        //                AND fs.visible = :visible 
+        //                AND fs.uid IN ($in_clause)
+        //              ORDER BY fs.timecreated";
 
-    $data_sql = "SELECT fs.* 
+        $data_sql = "SELECT fs.* 
              FROM {form_submissions} fs 
              WHERE fs.formid = :formid 
                AND fs.visible = :visible 
                AND fs.uid IN ($in_clause)";
 
-               if (!empty($statusfilter)) {
-    $data_sql .= " AND fs.confirmflag = :statusfilter";
-    $data_params['statusfilter'] = $statusfilter;
-}
-
-$data_sql .= " ORDER BY fs.timecreated";
-    $all_records = $DB->get_records_sql($data_sql, $data_params);
-
-    $fields = [];
-    $users = [];
-    $confirm_map = [];
-    $time_map = [];
-
-    foreach ($all_records as $record) {
-
-        $uid = $record->uid;
-
-        if (!in_array($record->fieldname, $fields)) {
-            $fields[] = $record->fieldname;
+        if (!empty($statusfilter)) {
+            $data_sql .= " AND fs.confirmflag = :statusfilter";
+            $data_params['statusfilter'] = $statusfilter;
         }
 
-        if (!isset($users[$uid])) {
-            $users[$uid] = [];
+        $data_sql .= " ORDER BY fs.timecreated";
+        $all_records = $DB->get_records_sql($data_sql, $data_params);
+
+        $fields = [];
+        $users = [];
+        $confirm_map = [];
+        $time_map = [];
+
+        foreach ($all_records as $record) {
+
+            $uid = $record->uid;
+
+            if (!in_array($record->fieldname, $fields)) {
+                $fields[] = $record->fieldname;
+            }
+
+            if (!isset($users[$uid])) {
+                $users[$uid] = [];
+            }
+
+            $users[$uid][$record->fieldname] = $record->fieldvalue;
+
+            if (!isset($time_map[$uid]) || $record->timecreated > $time_map[$uid]) {
+                $time_map[$uid] = $record->timecreated;
+                $confirm_map[$uid] = $record->confirmflag ?? 'Confirm';
+            }
         }
 
-        $users[$uid][$record->fieldname] = $record->fieldvalue;
+        // ================= SEARCH BOX =================
+        $o .= '<div class="mb-3 d-flex align-items-end">';
 
-        if (!isset($time_map[$uid]) || $record->timecreated > $time_map[$uid]) {
-            $time_map[$uid] = $record->timecreated;
-            $confirm_map[$uid] = $record->confirmflag ?? 'Confirm';
-        }
-    }
-
-   // ================= SEARCH BOX =================
-$o .= '<div class="mb-3 d-flex align-items-end">';
-
-$o .= '<div class="mr-2">';
-$o .= '<label for="table_search" class="font-weight-bold mb-1">Search</label>';
-$o .= '<input type="text" 
+        $o .= '<div class="mr-2">';
+        $o .= '<label for="table_search" class="font-weight-bold mb-1">Search</label>';
+        $o .= '<input type="text" 
         id="table_search" 
-        value="'.htmlspecialchars($searchkeyword).'"
+        value="' . htmlspecialchars($searchkeyword) . '"
         class="form-control form-control-sm"
         placeholder="Search anything...">';
-$o .= '</div>';
+        $o .= '</div>';
 
-$o .= '<div class="mr-2">';
-$o .= '<button type="button" 
+        $o .= '<div class="mr-2">';
+        $o .= '<button type="button" 
                 id="apply_search" 
                 class="btn btn-sm btn-primary">
             Apply
         </button>';
-$o .= '</div>';
+        $o .= '</div>';
 
-$o .= '<div>';
-$o .= '<button type="button" 
+        $o .= '<div>';
+        $o .= '<button type="button" 
                 id="reset_search" 
                 class="btn btn-sm btn-secondary">
             Reset
         </button>';
-$o .= '</div>';
+        $o .= '</div>';
 
-$o .= '</div>';
+        $o .= '</div>';
 
-    // ================= TABLE =================
-    $headers = array_merge([
-        html_writer::tag('input', '', [
-            'type' => 'checkbox',
-            'id' => 'selectAll',
-            'onclick' => 'toggleAll(this)',
-            'class' => 'master-checkbox'
-        ]),
-        'Confirm Status',
-        'Form Submitted On',
-        'UID',
-        'Username',
-        'Password',
-        'Full Name',
-        'Email'
-    ], $fields);
-
-    if ($cohortid == 0) {
-        array_splice($headers, 5, 0, ['Cohort(s)']);
-    }
-
-    $table = new html_table();
-    $table->attributes['class'] = 'table table-striped table-hover';
-    $table->id = 'dynamic_table';
-    $table->head = $headers;
-
-    foreach ($paged_user_ids as $uid) {
-
-        $user_data = $users[$uid];
-        $encrypted_password = $DB->get_field('local_user', 'password', ['userid' => $uid]);
-        $user = $DB->get_record('user', ['id' => $uid], 'username, firstname, lastname, email');
-
-        $username = $user ? $user->username : 'N/A';
-        $fullname = $user ? fullname($user) : 'N/A';
-        $email = $user ? $user->email : 'N/A';
-
-        $row = [];
-
-        $row[] = html_writer::empty_tag('input', [
-            'type' => 'checkbox',
-            'class' => 'row-checkbox individual-checkbox uidcheckbox',
-            'value' => $uid,
-            'onclick' => 'updateParentCheckbox()'
-        ]);
-
-        $timecreated = $time_map[$uid] ?? null;
-      $confirmstatus = $confirm_map[$uid] ?? 'Not Confirmed';
-
-if ($confirmstatus === 'Confirmed') {
-    $buttontext = 'Confirmed';
-    $btnclass = 'btn-success';
-} else {
-    $buttontext = 'Not Confirmed';
-    $btnclass = 'btn-danger';
-}
-
-        $row[] = '<button class="confirm_toggle '.$btnclass.'" 
-                    data-uid="'.$uid.'" 
-                    data-time="'.$timecreated.'" 
-                    data-status="'.$confirmstatus.'">
-                    '.$buttontext.'
-                  </button>';
-
-        $row[] = $timecreated ? userdate($timecreated) : 'N/A';
-        $row[] = $uid;
-        $row[] = $username;
-        $row[] = $encrypted_password;
-        $row[] = $fullname;
-        $row[] = $email;
+        // ================= TABLE =================
+        $headers = array_merge([
+            html_writer::tag('input', '', [
+                'type' => 'checkbox',
+                'id' => 'selectAll',
+                'onclick' => 'toggleAll(this)',
+                'class' => 'master-checkbox'
+            ]),
+            'Confirm Status',
+            'Form Submitted On',
+            'UID',
+            'Username',
+            'Password',
+            'Full Name',
+            'Email'
+        ], $fields);
 
         if ($cohortid == 0) {
-            $user_cohorts = $DB->get_records_sql(
-                "SELECT c.name 
+            array_splice($headers, 5, 0, ['Cohort(s)']);
+        }
+
+        $table = new html_table();
+        $table->attributes['class'] = 'table table-striped table-hover';
+        $table->id = 'dynamic_table';
+        $table->head = $headers;
+
+        foreach ($paged_user_ids as $uid) {
+
+            $user_data = $users[$uid];
+            $encrypted_password = $DB->get_field('local_user', 'password', ['userid' => $uid]);
+            $user = $DB->get_record('user', ['id' => $uid], 'username, firstname, lastname, email');
+
+            $username = $user ? $user->username : 'N/A';
+            $fullname = $user ? fullname($user) : 'N/A';
+            $email = $user ? $user->email : 'N/A';
+
+            $row = [];
+
+            $row[] = html_writer::empty_tag('input', [
+                'type' => 'checkbox',
+                'class' => 'row-checkbox individual-checkbox uidcheckbox',
+                'value' => $uid,
+                'onclick' => 'updateParentCheckbox()'
+            ]);
+
+            $timecreated = $time_map[$uid] ?? null;
+            $confirmstatus = $confirm_map[$uid] ?? 'Not Confirmed';
+
+            if ($confirmstatus === 'Confirmed') {
+                $buttontext = 'Confirmed';
+                $btnclass = 'btn-success';
+            } else {
+                $buttontext = 'Not Confirmed';
+                $btnclass = 'btn-danger';
+            }
+
+            $row[] = '<button class="confirm_toggle ' . $btnclass . '" 
+                    data-uid="' . $uid . '" 
+                    data-time="' . $timecreated . '" 
+                    data-status="' . $confirmstatus . '">
+                    ' . $buttontext . '
+                  </button>';
+
+            $row[] = $timecreated ? userdate($timecreated) : 'N/A';
+            $row[] = $uid;
+            $row[] = $username;
+            $row[] = $encrypted_password;
+            $row[] = $fullname;
+            $row[] = $email;
+
+            if ($cohortid == 0) {
+                $user_cohorts = $DB->get_records_sql(
+                    "SELECT c.name 
                  FROM {cohort} c
                  JOIN {cohort_members} cm ON c.id = cm.cohortid
                  WHERE cm.userid = :userid",
-                ['userid' => $uid]
-            );
+                    ['userid' => $uid]
+                );
 
-            $names = [];
-            foreach ($user_cohorts as $c) {
-                $names[] = $c->name;
-            }
-
-            $row[] = !empty($names) ? implode(', ', $names) : 'None';
-        }
-
-         foreach ($fields as $field) {
-
-            if (!empty($user_data[$field])) {
-
-                $value = trim($user_data[$field]);
-                $extension = strtolower(pathinfo($value, PATHINFO_EXTENSION));
-                $allowedfiles = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'];
-
-                if (in_array($extension, $allowedfiles)) {
-
-                    $fileurl = new moodle_url('/local/form/pix/' . $value);
-
-                    if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
-
-                        $row[] = html_writer::empty_tag('img', [
-                            'src' => $fileurl,
-                            'alt' => 'Uploaded Image',
-                            'style' => 'max-width:100px; height:auto;'
-                        ]);
-
-                    } else {
-
-                        $row[] = html_writer::link(
-                            $fileurl,
-                            'View File',
-                            ['target' => '_blank']
-                        );
-                    }
-
-                } else {
-                    $row[] = format_string($value);
+                $names = [];
+                foreach ($user_cohorts as $c) {
+                    $names[] = $c->name;
                 }
 
-            } else {
-                $row[] = '';
+                $row[] = !empty($names) ? implode(', ', $names) : 'None';
             }
+
+            foreach ($fields as $field) {
+
+                if (!empty($user_data[$field])) {
+
+                    $value = trim($user_data[$field]);
+                    $extension = strtolower(pathinfo($value, PATHINFO_EXTENSION));
+                    $allowedfiles = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'];
+
+                    if (in_array($extension, $allowedfiles)) {
+
+                        $fileurl = new moodle_url('/local/form/pix/' . $value);
+
+                        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+
+                            $row[] = html_writer::empty_tag('img', [
+                                'src' => $fileurl,
+                                'alt' => 'Uploaded Image',
+                                'style' => 'max-width:100px; height:auto;'
+                            ]);
+                        } else {
+
+                            $row[] = html_writer::link(
+                                $fileurl,
+                                'View File',
+                                ['target' => '_blank']
+                            );
+                        }
+                    } else {
+                        $row[] = format_string($value);
+                    }
+                } else {
+                    $row[] = '';
+                }
+            }
+
+            $table->data[] = $row;
         }
 
-        $table->data[] = $row;
-    }
+        // ============ ORIGINAL BULK ACTION SECTION - KEPT EXACTLY AS IS ============
+        $o .= html_writer::start_tag('div', ['class' => 'bulk-action-section']);
+        $o .= html_writer::start_tag('form', ['method' => 'post', 'id' => 'bulkActionForm']);
 
-    // ============ ORIGINAL BULK ACTION SECTION - KEPT EXACTLY AS IS ============
-    $o .= html_writer::start_tag('div', ['class' => 'bulk-action-section']);
-    $o .= html_writer::start_tag('form', ['method' => 'post', 'id' => 'bulkActionForm']);
-
-    $o .= html_writer::empty_tag('input', [
-        'type' => 'hidden',
-        'id' => 'selectedUserIds',
-        'name' => 'userids'
-    ]);
-
-    // $o .= html_writer::tag('button', 'Remove Selected', [
-    //     'type' => 'submit',
-    //     'class' => 'btn btn-danger',
-    //     'id' => 'bulkRemoveBtn',
-    //     'onclick' => 'return prepareBulkRemove();'
-    // ]);
-
-    $o .= html_writer::tag(
-        'span',
-        '<span id="selectedCount">0</span> Users Selected',
-        ['class' => 'ml-3 text-muted']
-    );
-
-    $o .= html_writer::end_tag('form');
-    $o .= html_writer::end_tag('div');
-    // ============ END ORIGINAL BULK ACTION SECTION ============
-
-    // ============ NEW MIGRATION BULK ACTION SECTION - ADDED WITHOUT MODIFYING ORIGINAL ============
-    $o .= html_writer::start_tag('div', ['class' => 'bulk-action-section mt-2']);
-    $o .= html_writer::start_tag('form', ['method' => 'post', 'id' => 'migrationForm', 'action' => new moodle_url('/local/form/migration.php')]);
-
-    $o .= html_writer::empty_tag('input', [
-        'type' => 'hidden',
-        'id' => 'migration_selected_userids',
-        'name' => 'userids'
-    ]);
-
-    $o .= html_writer::empty_tag('input', [
-        'type' => 'hidden',
-        'name' => 'formid',
-        'value' => $formid
-    ]);
-
-    if (!empty($token)) {
         $o .= html_writer::empty_tag('input', [
             'type' => 'hidden',
-            'name' => 'token',
-            'value' => $token
-        ]);
-    }
-
-    if ($cohortid > 0) {
-        $o .= html_writer::empty_tag('input', [
-            'type' => 'hidden',
-            'name' => 'cohortid',
-            'value' => $cohortid
-        ]);
-    }
-
-    $o .= html_writer::tag('button', 
-        html_writer::tag('i', '', ['class' => 'fas fa-cloud-upload-alt mr-2']) . 'Migrate Selected to Sargam',
-        [
-            'type' => 'submit',
-            'class' => 'btn btn-success',
-            'id' => 'bulkMigrateBtn',
-            'onclick' => 'return prepareBulkMigration();'
-        ]
-    );
-
-    $o .= html_writer::end_tag('form');
-    $o .= html_writer::end_tag('div');
-    // ============ END NEW MIGRATION BULK ACTION SECTION ============
-
-    $o .= html_writer::table($table);
-
-    // ================= PAGINATION =================
-    $totalpages = ($perpage > 0) ? ceil($total_users / $perpage) : 0;
-
-    if ($totalpages > 1) {
-        $paging_url = new moodle_url('/local/form/courselist.php', [
-            'token' => $token,
-            'cohortid' => $cohortid
+            'id' => 'selectedUserIds',
+            'name' => 'userids'
         ]);
 
-        $o .= $OUTPUT->paging_bar(
-            $total_users,
-            $page,
-            $perpage,
-            $paging_url
+        // $o .= html_writer::tag('button', 'Remove Selected', [
+        //     'type' => 'submit',
+        //     'class' => 'btn btn-danger',
+        //     'id' => 'bulkRemoveBtn',
+        //     'onclick' => 'return prepareBulkRemove();'
+        // ]);
+
+        $o .= html_writer::tag(
+            'span',
+            '<span id="selectedCount">0</span> Users Selected',
+            ['class' => 'ml-3 text-muted']
         );
-    }
 
-    // Download selector
-    $o .= $OUTPUT->download_dataformat_selector(
-        get_string('download', 'local_form'),
-        'export.php',
-        'dataformat',
-        [
-            'formid' => $formid,
-            'token' => $token,
-            'cohortid' => $cohortid
-        ]
-    );
+        $o .= html_writer::end_tag('form');
+        $o .= html_writer::end_tag('div');
+        // ============ END ORIGINAL BULK ACTION SECTION ============
 
-    // JavaScript - UPDATED with migration function added, original JS kept intact
-    $o .= '
+        // ============ NEW MIGRATION BULK ACTION SECTION - ADDED WITHOUT MODIFYING ORIGINAL ============
+        $o .= html_writer::start_tag('div', ['class' => 'bulk-action-section mt-2']);
+        $o .= html_writer::start_tag('form', ['method' => 'post', 'id' => 'migrationForm', 'action' => new moodle_url('/local/form/migration.php')]);
+
+        $o .= html_writer::empty_tag('input', [
+            'type' => 'hidden',
+            'id' => 'migration_selected_userids',
+            'name' => 'userids'
+        ]);
+
+        $o .= html_writer::empty_tag('input', [
+            'type' => 'hidden',
+            'name' => 'formid',
+            'value' => $formid
+        ]);
+
+        if (!empty($token)) {
+            $o .= html_writer::empty_tag('input', [
+                'type' => 'hidden',
+                'name' => 'token',
+                'value' => $token
+            ]);
+        }
+
+        if ($cohortid > 0) {
+            $o .= html_writer::empty_tag('input', [
+                'type' => 'hidden',
+                'name' => 'cohortid',
+                'value' => $cohortid
+            ]);
+        }
+
+        $o .= html_writer::tag(
+            'button',
+            html_writer::tag('i', '', ['class' => 'fas fa-cloud-upload-alt mr-2']) . 'Migrate Selected to Sargam',
+            [
+                'type' => 'submit',
+                'class' => 'btn btn-success',
+                'id' => 'bulkMigrateBtn',
+                'onclick' => 'return prepareBulkMigration();'
+            ]
+        );
+
+        $o .= html_writer::end_tag('form');
+        $o .= html_writer::end_tag('div');
+        // ============ END NEW MIGRATION BULK ACTION SECTION ============
+
+        $o .= html_writer::table($table);
+
+        // ================= PAGINATION =================
+        $totalpages = ($perpage > 0) ? ceil($total_users / $perpage) : 0;
+
+        if ($totalpages > 1) {
+            $paging_url = new moodle_url('/local/form/courselist.php', [
+                'token' => $token,
+                'cohortid' => $cohortid
+            ]);
+
+            $o .= $OUTPUT->paging_bar(
+                $total_users,
+                $page,
+                $perpage,
+                $paging_url
+            );
+        }
+
+        // Download selector
+        $o .= $OUTPUT->download_dataformat_selector(
+            get_string('download', 'local_form'),
+            'export.php',
+            'dataformat',
+            [
+                'formid' => $formid,
+                'token' => $token,
+                'cohortid' => $cohortid
+            ]
+        );
+
+        // JavaScript - UPDATED with migration function added, original JS kept intact
+        $o .= '
 <script>
 // ============ ORIGINAL JAVASCRIPT FUNCTIONS - KEPT EXACTLY AS IS ============
 function toggleAll(source){
@@ -1381,11 +1379,11 @@ document.addEventListener("DOMContentLoaded",function(){
 });
 </script>';
 
-    // Add Font Awesome for icons if not already loaded
-    $o .= '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">';
+        // Add Font Awesome for icons if not already loaded
+        $o .= '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">';
 
-    // Add custom CSS for migration button
-    $o .= '
+        // Add custom CSS for migration button
+        $o .= '
 <style>
 /* Migration button styles - added without affecting original styles */
 #bulkMigrateBtn {
@@ -1407,8 +1405,445 @@ document.addEventListener("DOMContentLoaded",function(){
 }
 </style>';
 
-    return $o;
+        return $o;
+    }
+
+
+    // report_courselist function 
+
+    public function local_report_courselist($records = null, $recordcount = null, $page = 0, $perpage = 10, $formid = 0, $token = '', $cohortid = 0, $searchkeyword = '', $confirmfilter = '')
+    {
+        $o = '';
+        global $DB, $OUTPUT, $USER;
+
+        // Token handling
+        if (empty($token)) {
+            $token = local_form_generate_signed_url($formid, 'courselist');
+            if (strpos($token, 'token=') !== false) {
+                $parts = parse_url($token);
+                parse_str($parts['query'] ?? '', $query);
+                $token = $query['token'] ?? '';
+            }
+        } else {
+            if (strpos($token, 'token=') !== false) {
+                $parts = parse_url($token);
+                parse_str($parts['query'] ?? '', $query);
+                $token = $query['token'] ?? '';
+            }
+        }
+
+        // ================= SQL Building =================
+        $sql_params = [
+            'formid' => $formid,
+            'visible' => 1
+        ];
+
+        $sql_joins = '';
+        $sql_where = 'fs.formid = :formid AND fs.visible = :visible';
+
+        // ================= CONFIRM FILTER LOGIC =================
+        if (!empty($confirmfilter)) {
+            if ($confirmfilter === 'Not Confirmed') {
+                $sql_where .= " AND (fs.confirmflag = :confirmflag OR fs.confirmflag IS NULL)";
+                $sql_params['confirmflag'] = 'Not Confirmed';
+            } else if ($confirmfilter === 'Confirmed') {
+                $sql_where .= " AND fs.confirmflag = :confirmflag";
+                $sql_params['confirmflag'] = 'Confirmed';
+            }
+        }
+
+        // ================= SEARCH LOGIC - FIXED =================
+        if (!empty($searchkeyword)) {
+            $keywordtrim = trim($searchkeyword);
+
+            // Check if search is for status
+            if (strcasecmp($keywordtrim, 'Confirmed') === 0 || strcasecmp($keywordtrim, 'Not Confirmed') === 0) {
+                $sql_where .= " AND fs.confirmflag = :statussearch";
+                $sql_params['statussearch'] = (strcasecmp($keywordtrim, 'Confirmed') === 0) ? 'Confirmed' : 'Not Confirmed';
+                $statusfilter = $sql_params['statussearch'];
+            } else {
+                // Search in user fields and form field values
+                $sql_where .= " AND (
+                fs.uid IN (
+                    SELECT u.id FROM {user} u
+                    WHERE u.username LIKE :search1
+                       OR u.firstname LIKE :search2
+                       OR u.lastname LIKE :search3
+                       OR u.email LIKE :search4
+                       OR CONCAT(u.firstname, ' ', u.lastname) LIKE :search6
+                )
+                OR EXISTS (
+                    SELECT 1 FROM {form_submissions} fs2
+                    WHERE fs2.uid = fs.uid
+                      AND fs2.formid = fs.formid
+                      AND fs2.visible = 1
+                      AND fs2.fieldvalue LIKE :search5
+                )
+            )";
+
+                $like = '%' . $searchkeyword . '%';
+                $sql_params['search1'] = $like;
+                $sql_params['search2'] = $like;
+                $sql_params['search3'] = $like;
+                $sql_params['search4'] = $like;
+                $sql_params['search5'] = $like;
+                $sql_params['search6'] = $like;
+            }
+        }
+
+        // Add cohort filter
+        if ($cohortid > 0) {
+            $sql_joins = 'INNER JOIN {cohort_members} cm ON fs.uid = cm.userid';
+            $sql_where .= ' AND cm.cohortid = :cohortid';
+            $sql_params['cohortid'] = $cohortid;
+        }
+
+        // Count total users
+        $count_sql = "SELECT COUNT(DISTINCT fs.uid)
+                  FROM {form_submissions} fs 
+                  $sql_joins 
+                  WHERE $sql_where";
+
+        $total_users = $DB->count_records_sql($count_sql, $sql_params);
+
+        // Get paginated user IDs
+        $user_ids_sql = "SELECT fs.uid, MAX(fs.timecreated) as lastsubmitted
+                     FROM {form_submissions} fs 
+                     $sql_joins 
+                     WHERE $sql_where
+                     GROUP BY fs.uid
+                     ORDER BY lastsubmitted DESC";
+
+        $paged_user_records = $DB->get_records_sql(
+            $user_ids_sql,
+            $sql_params,
+            $page * $perpage,
+            $perpage
+        );
+
+        $paged_user_ids = array_keys($paged_user_records);
+
+        if (empty($paged_user_ids)) {
+            $o .= html_writer::tag('div', 'No records found', ['class' => 'alert alert-info']);
+            return $o;
+        }
+
+        // ================= Fetch User Data =================
+        $placeholders = [];
+        $data_params = ['formid' => $formid, 'visible' => 1];
+        $i = 0;
+
+        foreach ($paged_user_ids as $uid) {
+            $param = 'uid' . $i;
+            $placeholders[] = ':' . $param;
+            $data_params[$param] = $uid;
+            $i++;
+        }
+
+        $in_clause = implode(',', $placeholders);
+
+        $data_sql = "SELECT fs.* 
+                 FROM {form_submissions} fs 
+                 WHERE fs.formid = :formid 
+                   AND fs.visible = :visible 
+                   AND fs.uid IN ($in_clause)";
+
+        if (!empty($statusfilter)) {
+            $data_sql .= " AND fs.confirmflag = :statusfilter";
+            $data_params['statusfilter'] = $statusfilter;
+        }
+
+        $data_sql .= " ORDER BY fs.timecreated";
+        $all_records = $DB->get_records_sql($data_sql, $data_params);
+
+        $fields = [];
+        $users = [];
+        $confirm_map = [];
+        $time_map = [];
+
+        foreach ($all_records as $record) {
+            $uid = $record->uid;
+
+            if (!in_array($record->fieldname, $fields)) {
+                $fields[] = $record->fieldname;
+            }
+
+            if (!isset($users[$uid])) {
+                $users[$uid] = [];
+            }
+
+            $users[$uid][$record->fieldname] = $record->fieldvalue;
+
+            if (!isset($time_map[$uid]) || $record->timecreated > $time_map[$uid]) {
+                $time_map[$uid] = $record->timecreated;
+                $confirm_map[$uid] = $record->confirmflag ?? 'Confirm';
+            }
+        }
+
+        // ================= SEARCH BOX =================
+        $o .= '<div class="mb-3 d-flex align-items-end">';
+        $o .= '<div class="mr-2">';
+        $o .= '<label for="table_search" class="font-weight-bold mb-1">Search</label>';
+        $o .= '<input type="text" 
+            id="table_search" 
+            value="' . htmlspecialchars($searchkeyword) . '"
+            class="form-control form-control-sm"
+            placeholder="Search anything...">';
+        $o .= '</div>';
+        $o .= '<div class="mr-2">';
+        $o .= '<button type="button" id="apply_search" class="btn btn-sm btn-primary">Apply</button>';
+        $o .= '</div>';
+        $o .= '<div>';
+        $o .= '<button type="button" id="reset_search" class="btn btn-sm btn-secondary">Reset</button>';
+        $o .= '</div>';
+        $o .= '</div>';
+
+        // ================= TABLE =================
+        $headers = array_merge([
+            html_writer::tag('input', '', [
+                'type' => 'checkbox',
+                'id' => 'selectAll',
+                'onclick' => 'toggleAll(this)',
+                'class' => 'master-checkbox'
+            ]),
+            'Confirm Status',
+            'Form Submitted On',
+            'UID',
+            'Username',
+            'Password',
+            'Full Name',
+            'Email'
+        ], $fields);
+
+        if ($cohortid == 0) {
+            array_splice($headers, 5, 0, ['Cohort(s)']);
+        }
+
+        $table = new html_table();
+        $table->attributes['class'] = 'table table-striped table-hover';
+        $table->id = 'dynamic_table';
+        $table->head = $headers;
+
+        foreach ($paged_user_ids as $uid) {
+            $user_data = $users[$uid];
+            $encrypted_password = $DB->get_field('local_user', 'password', ['userid' => $uid]);
+            $user = $DB->get_record('user', ['id' => $uid], 'username, firstname, lastname, email');
+
+            $username = $user ? $user->username : 'N/A';
+            $fullname = $user ? fullname($user) : 'N/A';
+            $email = $user ? $user->email : 'N/A';
+
+            $row = [];
+
+            $row[] = html_writer::empty_tag('input', [
+                'type' => 'checkbox',
+                'class' => 'row-checkbox individual-checkbox uidcheckbox',
+                'value' => $uid,
+                'onclick' => 'updateParentCheckbox()'
+            ]);
+
+            $timecreated = $time_map[$uid] ?? null;
+            $confirmstatus = $confirm_map[$uid] ?? 'Not Confirmed';
+
+            if ($confirmstatus === 'Confirmed') {
+                $buttontext = 'Confirmed';
+                $btnclass = 'btn-success';
+            } else {
+                $buttontext = 'Not Confirmed';
+                $btnclass = 'btn-danger';
+            }
+
+            $row[] = '<button class="confirm_toggle ' . $btnclass . '" 
+                data-uid="' . $uid . '" 
+                data-time="' . $timecreated . '" 
+                data-status="' . $confirmstatus . '">
+                ' . $buttontext . '
+              </button>';
+
+            $row[] = $timecreated ? userdate($timecreated) : 'N/A';
+            $row[] = $uid;
+            $row[] = $username;
+            $row[] = $encrypted_password;
+            $row[] = $fullname;
+            $row[] = $email;
+
+            if ($cohortid == 0) {
+                $user_cohorts = $DB->get_records_sql(
+                    "SELECT c.name 
+                 FROM {cohort} c
+                 JOIN {cohort_members} cm ON c.id = cm.cohortid
+                 WHERE cm.userid = :userid",
+                    ['userid' => $uid]
+                );
+
+                $names = [];
+                foreach ($user_cohorts as $c) {
+                    $names[] = $c->name;
+                }
+                $row[] = !empty($names) ? implode(', ', $names) : 'None';
+            }
+
+            foreach ($fields as $field) {
+                if (!empty($user_data[$field])) {
+                    $value = trim($user_data[$field]);
+                    $extension = strtolower(pathinfo($value, PATHINFO_EXTENSION));
+                    $allowedfiles = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'];
+
+                    if (in_array($extension, $allowedfiles)) {
+                        $fileurl = new moodle_url('/local/form/pix/' . $value);
+                        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                            $row[] = html_writer::empty_tag('img', [
+                                'src' => $fileurl,
+                                'alt' => 'Uploaded Image',
+                                'style' => 'max-width:100px; height:auto;'
+                            ]);
+                        } else {
+                            $row[] = html_writer::link($fileurl, 'View File', ['target' => '_blank']);
+                        }
+                    } else {
+                        $row[] = format_string($value);
+                    }
+                } else {
+                    $row[] = '';
+                }
+            }
+            $table->data[] = $row;
+        }
+
+        $o .= html_writer::table($table);
+
+        // ================= PAGINATION =================
+        $totalpages = ($perpage > 0) ? ceil($total_users / $perpage) : 0;
+
+        if ($totalpages > 1) {
+            $paging_url = new moodle_url('/local/form/report_courselist.php', [
+                'token' => $token,
+                'cohortid' => $cohortid,
+                'searchkeyword' => $searchkeyword,
+                'confirmfilter' => $confirmfilter
+            ]);
+
+            $o .= $OUTPUT->paging_bar($total_users, $page, $perpage, $paging_url);
+        }
+
+        // Download selector
+        $o .= $OUTPUT->download_dataformat_selector(
+            get_string('download', 'local_form'),
+            'export.php',
+            'dataformat',
+            [
+                'formid' => $formid,
+                'token' => $token,
+                'cohortid' => $cohortid
+            ]
+        );
+
+        // Add JavaScript for search functionality
+        $o .= '
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Search functionality
+    const applySearchBtn = document.getElementById("apply_search");
+    const resetSearchBtn = document.getElementById("reset_search");
+    const searchInput = document.getElementById("table_search");
+    
+    if (applySearchBtn) {
+        applySearchBtn.addEventListener("click", function() {
+            let searchValue = searchInput ? searchInput.value : "";
+            let currentUrl = new URL(window.location.href);
+            if (searchValue) {
+                currentUrl.searchParams.set("searchkeyword", searchValue);
+            } else {
+                currentUrl.searchParams.delete("searchkeyword");
+            }
+            currentUrl.searchParams.set("page", "0");
+            window.location.href = currentUrl.toString();
+        });
+    }
+    
+    if (resetSearchBtn) {
+        resetSearchBtn.addEventListener("click", function() {
+            let currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete("searchkeyword");
+            currentUrl.searchParams.set("page", "0");
+            window.location.href = currentUrl.toString();
+        });
+    }
+    
+    // Enter key search
+    if (searchInput) {
+        searchInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                applySearchBtn.click();
+            }
+        });
+    }
+});
+
+// Checkbox functions
+function toggleAll(source) {
+    document.querySelectorAll(".row-checkbox").forEach(cb => {
+        cb.checked = source.checked;
+        updateRowStyle(cb);
+    });
+    updateSelectionInfo();
 }
+
+function updateParentCheckbox() {
+    const all = document.querySelectorAll(".row-checkbox");
+    const checked = document.querySelectorAll(".row-checkbox:checked");
+    const selectAll = document.getElementById("selectAll");
+    if (selectAll) {
+        selectAll.checked = all.length === checked.length;
+    }
+    updateSelectionInfo();
+}
+
+function updateRowStyle(cb) {
+    const row = cb.closest("tr");
+    if (cb.checked) {
+        row.classList.add("row-selected");
+    } else {
+        row.classList.remove("row-selected");
+    }
+}
+
+function updateSelectionInfo() {
+    const checked = document.querySelectorAll(".row-checkbox:checked");
+    const selectedCount = document.getElementById("selectedCount");
+    if (selectedCount) {
+        selectedCount.textContent = checked.length;
+    }
+    const bulkRemoveBtn = document.getElementById("bulkRemoveBtn");
+    if (bulkRemoveBtn) {
+        bulkRemoveBtn.disabled = checked.length === 0;
+        bulkRemoveBtn.style.opacity = checked.length === 0 ? "0.6" : "1";
+    }
+    const bulkMigrateBtn = document.getElementById("bulkMigrateBtn");
+    if (bulkMigrateBtn) {
+        bulkMigrateBtn.disabled = checked.length === 0;
+        bulkMigrateBtn.style.opacity = checked.length === 0 ? "0.6" : "1";
+    }
+}
+
+document.querySelectorAll(".row-checkbox").forEach(cb => {
+    cb.addEventListener("change", function() {
+        updateRowStyle(this);
+        updateParentCheckbox();
+    });
+});
+updateSelectionInfo();
+</script>';
+
+        // Add custom CSS for selected rows
+        $o .= '<style>
+    .row-selected {
+        background-color: #e8f0fe !important;
+    }
+    </style>';
+
+        return $o;
+    }
 
 
 
@@ -1481,46 +1916,46 @@ document.addEventListener("DOMContentLoaded",function(){
     // }
 
     public function local_cohort($selectedcohortid = 0)
-{
-    global $DB;
+    {
+        global $DB;
 
-    // Initialize options array properly
-    $options = [];
-    $options[0] = "Select Cohort";
+        // Initialize options array properly
+        $options = [];
+        $options[0] = "Select Cohort";
 
-    // Fetch cohort records
-    $records = $DB->get_records('cohort', null, 'name ASC', 'id, name');
+        // Fetch cohort records
+        $records = $DB->get_records('cohort', null, 'name ASC', 'id, name');
 
-    foreach ($records as $record) {
-        $options[$record->id] = $record->name;
+        foreach ($records as $record) {
+            $options[$record->id] = $record->name;
+        }
+
+        // Label
+        $label = html_writer::label(
+            get_string('selectcohort', 'local_form'),
+            'quizviewfilter',
+            false
+        );
+
+        $dropdown = html_writer::select(
+            $options,
+            "quizview",
+            $selectedcohortid,   // this makes it auto-selected
+            null,
+            array('id' => 'quizviewfilter')
+        );
+
+        $space = html_writer::empty_tag('br');
+
+        $button = html_writer::empty_tag('input', array(
+            'type' => 'submit',
+            'value' => get_string('addselectedstudent', 'local_form'),
+            'id' => 'add_to_cohort_button',
+            'class' => 'btn btn-primary'
+        ));
+
+        return $label . $dropdown . $space . $space . $button;
     }
-
-    // Label
-    $label = html_writer::label(
-        get_string('selectcohort', 'local_form'),
-        'quizviewfilter',
-        false
-    );
-
-    $dropdown = html_writer::select(
-        $options,
-        "quizview",
-        $selectedcohortid,   // this makes it auto-selected
-        null,
-        array('id' => 'quizviewfilter')
-    );
-
-    $space = html_writer::empty_tag('br');
-
-    $button = html_writer::empty_tag('input', array(
-        'type' => 'submit',
-        'value' => get_string('addselectedstudent', 'local_form'),
-        'id' => 'add_to_cohort_button',
-        'class' => 'btn btn-primary'
-    ));
-
-    return $label . $dropdown . $space . $space . $button;
-}
 
 
     public function local_inactive_users($formid)
@@ -2834,6 +3269,7 @@ document.addEventListener("DOMContentLoaded",function(){
             '#',
             'Form Name',
             'Description',
+            // 'Linked Cohort',
             'Submissions',
             'Created On'
         ];
@@ -2842,13 +3278,56 @@ document.addEventListener("DOMContentLoaded",function(){
 
         foreach ($records as $record) {
 
-            $params = ['formid' => $record->id];
+            // Find linked cohort based on form shortname
+            $cohortid = 0;
+            $cohort_info = '';
+            $autofilter = 0;
 
-            $submissions = html_writer::link(
+            if (!empty($record->shortname)) {
+                $linked_cohort = $DB->get_record('cohort', ['name' => $record->shortname]);
+                if ($linked_cohort) {
+                    $cohortid = $linked_cohort->id;
+                    $autofilter = 1;
+
+                    // Get member count
+                    $membercount = $DB->count_records('cohort_members', ['cohortid' => $linked_cohort->id]);
+
+                    $cohort_info = html_writer::tag('span', $linked_cohort->name, [
+                        'class' => 'badge badge-success',
+                        'title' => 'Members: ' . $membercount
+                    ]);
+                } else {
+                    $cohort_info = html_writer::tag('span', 'No matching cohort', [
+                        'class' => 'badge badge-secondary',
+                        'title' => 'No cohort found with name: ' . $record->shortname
+                    ]);
+                }
+            } else {
+                $cohort_info = html_writer::tag('span', 'No shortname set', [
+                    'class' => 'badge badge-warning'
+                ]);
+            }
+
+            // Build parameters with cohortid if available
+            $params = ['formid' => $record->id];
+            if ($cohortid > 0) {
+                $params['cohortid'] = $cohortid;
+                $params['autofilter'] = $autofilter;
+            }
+
+            // Create the submissions link
+            $submissions_link = html_writer::link(
                 new moodle_url('/local/form/report_courselist.php', $params),
-                'View Submissions',
+                html_writer::tag('i', '', ['class' => 'fas fa-eye mr-1']) . 'View Submissions',
                 ['class' => 'btn btn-outline-info btn-sm']
             );
+
+            // Add filter indicator
+            // if ($cohortid > 0) {
+            //     $submissions_link .= html_writer::tag('small', ' (filtered)', [
+            //         'class' => 'text-muted ml-1'
+            //     ]);
+            // }
 
             $table->data[] = [
                 $i++,
@@ -2857,7 +3336,8 @@ document.addEventListener("DOMContentLoaded",function(){
                     format_text($record->description, FORMAT_HTML),
                     'text-muted small'
                 ),
-                $submissions,
+                // $cohort_info,
+                $submissions_link,
                 userdate($record->timecreated)
             ];
         }
@@ -2877,8 +3357,8 @@ document.addEventListener("DOMContentLoaded",function(){
 
         return $output;
     }
-    
-     /**
+
+    /**
      * ==================== MOODLE TO SARGAM MIGRATION METHODS ====================
      */
 
@@ -2891,69 +3371,76 @@ document.addEventListener("DOMContentLoaded",function(){
      * @param int $cohortid Cohort ID
      * @return string HTML output
      */
-    public function render_migration_interface($selectedusers, $formid, $token = '', $cohortid = 0) {
+    public function render_migration_interface($selectedusers, $formid, $token = '', $cohortid = 0)
+    {
         global $DB;
-        
+
         $o = '';
-        
+
         // Get user data for selected users
         $userdata = [];
         if (!empty($selectedusers)) {
             list($insql, $inparams) = $DB->get_in_or_equal($selectedusers);
-            $users = $DB->get_records_select('user', "id $insql", $inparams, '', 
+            $users = $DB->get_records_select(
+                'user',
+                "id $insql",
+                $inparams,
+                '',
                 'id, username, firstname, lastname, email, phone1, phone2, institution, department, 
                  address, city, country, timecreated, timemodified, lastaccess, picture, 
-                 confirmed, suspended, idnumber, middlename, alternatename');
-            
+                 confirmed, suspended, idnumber, middlename, alternatename'
+            );
+
             foreach ($users as $user) {
                 $password = $DB->get_field('local_user', 'password', ['userid' => $user->id]);
                 $user->password_hash = $password ? $password : '';
-                
+
                 $submissions = $DB->get_records('form_submissions', [
                     'formid' => $formid,
                     'uid' => $user->id,
                     'visible' => 1
                 ], '', 'fieldname, fieldvalue');
-                
+
                 $user->submissions = [];
                 foreach ($submissions as $submission) {
                     $user->submissions[$submission->fieldname] = $submission->fieldvalue;
                 }
-                
+
                 $userdata[$user->id] = $user;
             }
         }
-        
+
         $moodlecolumns = $this->get_moodle_user_columns();
-        
+
         $sargamtables = [
             'user_credentials' => $this->get_sargam_user_credentials_columns(),
             'student_master' => $this->get_sargam_student_master_columns(),
             'student_master_course__map' => $this->get_sargam_course_map_columns()
         ];
-        
+
         $o .= $this->output->heading('Moodle to Sargam Migration', 2, 'mb-4');
         $o .= $this->render_selected_users_summary($userdata);
         $o .= $this->render_migration_tabs();
-        
+
         $o .= \html_writer::start_div('migration-main-container row mt-4');
         $o .= $this->render_moodle_columns_section($moodlecolumns, $userdata);
         $o .= $this->render_sargam_tables_section($sargamtables);
         $o .= \html_writer::end_div();
-        
+
         $o .= $this->render_mapping_area();
         $o .= $this->render_migration_actions($formid, $token, $cohortid, $selectedusers);
         $o .= $this->render_progress_area($selectedusers);
         $o .= $this->render_migration_javascript($userdata, $formid, $token, $cohortid);
         $o .= $this->render_migration_css();
-        
+
         return $o;
     }
 
     /**
      * Get Moodle user table columns
      */
-    private function get_moodle_user_columns() {
+    private function get_moodle_user_columns()
+    {
         return [
             'id' => 'ID',
             'username' => 'Username',
@@ -2984,7 +3471,8 @@ document.addEventListener("DOMContentLoaded",function(){
     /**
      * Get Sargam user_credentials table columns
      */
-    private function get_sargam_user_credentials_columns() {
+    private function get_sargam_user_credentials_columns()
+    {
         return [
             'user_name' => 'Username',
             'first_name' => 'First Name',
@@ -3009,7 +3497,8 @@ document.addEventListener("DOMContentLoaded",function(){
     /**
      * Get Sargam student_master table columns
      */
-    private function get_sargam_student_master_columns() {
+    private function get_sargam_student_master_columns()
+    {
         return [
             'email' => 'Email',
             'contact_no' => 'Contact Number',
@@ -3033,7 +3522,8 @@ document.addEventListener("DOMContentLoaded",function(){
     /**
      * Get Sargam student_master_course__map table columns
      */
-    private function get_sargam_course_map_columns() {
+    private function get_sargam_course_map_columns()
+    {
         return [
             'student_master_pk' => 'Student ID',
             'course_master_pk' => 'Course ID',
@@ -3046,25 +3536,26 @@ document.addEventListener("DOMContentLoaded",function(){
     /**
      * Render selected users summary
      */
-    private function render_selected_users_summary($userdata) {
+    private function render_selected_users_summary($userdata)
+    {
         $o = '';
         $o .= \html_writer::start_div('selected-users-summary alert alert-info d-flex align-items-center');
         $o .= \html_writer::tag('i', '', ['class' => 'fas fa-users mr-3', 'style' => 'font-size: 24px;']);
         $o .= \html_writer::start_div('flex-grow-1');
         $o .= \html_writer::tag('strong', count($userdata) . ' Users Selected for Migration');
         $o .= \html_writer::start_tag('ul', ['class' => 'mb-0 mt-1']);
-        
+
         $count = 0;
         foreach ($userdata as $user) {
             if ($count++ < 5) {
                 $o .= \html_writer::tag('li', fullname($user) . ' (' . $user->username . ')');
             }
         }
-        
+
         if (count($userdata) > 5) {
             $o .= \html_writer::tag('li', '... and ' . (count($userdata) - 5) . ' more');
         }
-        
+
         $o .= \html_writer::end_tag('ul');
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
@@ -3074,22 +3565,23 @@ document.addEventListener("DOMContentLoaded",function(){
     /**
      * Render migration tabs
      */
-    private function render_migration_tabs() {
+    private function render_migration_tabs()
+    {
         $o = '';
         $o .= \html_writer::start_div('migration-tabs mb-4');
         $o .= \html_writer::start_tag('ul', ['class' => 'nav nav-tabs', 'role' => 'tablist']);
-        
+
         $tabs = [
             'user_credentials' => ['icon' => 'fa-user', 'label' => 'User Credentials'],
             'student_master' => ['icon' => 'fa-graduation-cap', 'label' => 'Student Master'],
             'student_master_course__map' => ['icon' => 'fa-book', 'label' => 'Course Enrollments']
         ];
-        
+
         $active = true;
         foreach ($tabs as $tabid => $tab) {
             $linkclass = 'nav-link' . ($active ? ' active' : '');
             $active = false;
-            
+
             $o .= \html_writer::start_tag('li', ['class' => 'nav-item']);
             $o .= \html_writer::start_tag('a', [
                 'class' => $linkclass,
@@ -3103,7 +3595,7 @@ document.addEventListener("DOMContentLoaded",function(){
             $o .= \html_writer::end_tag('a');
             $o .= \html_writer::end_tag('li');
         }
-        
+
         $o .= \html_writer::end_tag('ul');
         $o .= \html_writer::end_div();
         return $o;
@@ -3112,10 +3604,11 @@ document.addEventListener("DOMContentLoaded",function(){
     /**
      * Render Moodle columns section
      */
-    private function render_moodle_columns_section($moodlecolumns, $userdata) {
+    private function render_moodle_columns_section($moodlecolumns, $userdata)
+    {
         $o = '';
         $firstuser = reset($userdata);
-        
+
         $o .= \html_writer::start_div('col-md-6');
         $o .= \html_writer::start_div('moodle-columns-card card h-100');
         $o .= \html_writer::start_div('card-header bg-primary text-white');
@@ -3133,19 +3626,22 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= \html_writer::end_tag('tr');
         $o .= \html_writer::end_tag('thead');
         $o .= \html_writer::start_tag('tbody');
-        
+
         foreach ($moodlecolumns as $colname => $collabel) {
             $sample = $this->get_sample_data($firstuser, $colname);
-            
+
             $o .= \html_writer::start_tag('tr', ['class' => 'moodle-column-row', 'data-column' => $colname]);
-            $o .= \html_writer::tag('td', 
-                \html_writer::tag('strong', $collabel) . 
-                \html_writer::empty_tag('br') . 
-                \html_writer::tag('small', $colname, ['class' => 'text-muted'])
+            $o .= \html_writer::tag(
+                'td',
+                \html_writer::tag('strong', $collabel) .
+                    \html_writer::empty_tag('br') .
+                    \html_writer::tag('small', $colname, ['class' => 'text-muted'])
             );
             $o .= \html_writer::tag('td', \html_writer::tag('span', $sample, ['class' => 'sample-data']));
-            $o .= \html_writer::tag('td', 
-                \html_writer::tag('button', 
+            $o .= \html_writer::tag(
+                'td',
+                \html_writer::tag(
+                    'button',
                     \html_writer::tag('i', '', ['class' => 'fas fa-arrow-right']) . ' Map',
                     [
                         'class' => 'btn btn-sm btn-outline-primary map-moodle-btn',
@@ -3156,23 +3652,24 @@ document.addEventListener("DOMContentLoaded",function(){
             );
             $o .= \html_writer::end_tag('tr');
         }
-        
+
         $o .= \html_writer::end_tag('tbody');
         $o .= \html_writer::end_tag('table');
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         return $o;
     }
 
     /**
      * Get sample data for column
      */
-    private function get_sample_data($user, $colname) {
+    private function get_sample_data($user, $colname)
+    {
         if (!$user) return '—';
-        
+
         if (isset($user->$colname)) {
             $value = $user->$colname;
             if (in_array($colname, ['timecreated', 'timemodified', 'lastaccess'])) {
@@ -3186,14 +3683,15 @@ document.addEventListener("DOMContentLoaded",function(){
         } else if ($colname == 'password_hash' && $user) {
             return $user->password_hash ? '********' : 'Not set';
         }
-        
+
         return '—';
     }
 
     /**
      * Render Sargam tables section
      */
-    private function render_sargam_tables_section($sargamtables) {
+    private function render_sargam_tables_section($sargamtables)
+    {
         $o = '';
         $o .= \html_writer::start_div('col-md-6');
         $o .= \html_writer::start_div('sargam-columns-card card h-100');
@@ -3203,31 +3701,32 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= \html_writer::end_div();
         $o .= \html_writer::start_div('card-body p-0');
         $o .= \html_writer::start_div('tab-content');
-        
+
         $o .= \html_writer::start_div('tab-pane fade show active', ['id' => 'user_credentials', 'role' => 'tabpanel']);
         $o .= $this->render_sargam_table_columns('user_credentials', $sargamtables['user_credentials']);
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::start_div('tab-pane fade', ['id' => 'student_master', 'role' => 'tabpanel']);
         $o .= $this->render_sargam_table_columns('student_master', $sargamtables['student_master']);
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::start_div('tab-pane fade', ['id' => 'student_master_course__map', 'role' => 'tabpanel']);
         $o .= $this->render_sargam_table_columns('student_master_course__map', $sargamtables['student_master_course__map']);
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         return $o;
     }
 
     /**
      * Render Sargam table columns
      */
-    private function render_sargam_table_columns($tableid, $columns) {
+    private function render_sargam_table_columns($tableid, $columns)
+    {
         $o = '';
         $o .= \html_writer::start_div('table-responsive', ['style' => 'max-height: 500px; overflow-y: auto;']);
         $o .= \html_writer::start_tag('table', ['class' => 'table table-hover mb-0']);
@@ -3239,21 +3738,24 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= \html_writer::end_tag('tr');
         $o .= \html_writer::end_tag('thead');
         $o .= \html_writer::start_tag('tbody');
-        
+
         foreach ($columns as $colname => $collabel) {
             $o .= \html_writer::start_tag('tr', [
                 'class' => 'sargam-column-row',
                 'data-table' => $tableid,
                 'data-column' => $colname
             ]);
-            $o .= \html_writer::tag('td', 
-                \html_writer::tag('strong', $collabel) . 
-                \html_writer::empty_tag('br') . 
-                \html_writer::tag('small', $colname, ['class' => 'text-muted'])
+            $o .= \html_writer::tag(
+                'td',
+                \html_writer::tag('strong', $collabel) .
+                    \html_writer::empty_tag('br') .
+                    \html_writer::tag('small', $colname, ['class' => 'text-muted'])
             );
             $o .= \html_writer::tag('td', $this->get_column_description($colname));
-            $o .= \html_writer::tag('td', 
-                \html_writer::tag('button', 
+            $o .= \html_writer::tag(
+                'td',
+                \html_writer::tag(
+                    'button',
                     \html_writer::tag('i', '', ['class' => 'fas fa-arrow-left']) . ' Map',
                     [
                         'class' => 'btn btn-sm btn-outline-success map-sargam-btn',
@@ -3265,18 +3767,19 @@ document.addEventListener("DOMContentLoaded",function(){
             );
             $o .= \html_writer::end_tag('tr');
         }
-        
+
         $o .= \html_writer::end_tag('tbody');
         $o .= \html_writer::end_tag('table');
         $o .= \html_writer::end_div();
-        
+
         return $o;
     }
 
     /**
      * Get column description
      */
-    private function get_column_description($colname) {
+    private function get_column_description($colname)
+    {
         $descriptions = [
             'user_name' => 'Login username',
             'first_name' => 'User first name',
@@ -3292,26 +3795,28 @@ document.addEventListener("DOMContentLoaded",function(){
             'student_master_pk' => 'Student ID reference',
             'course_master_pk' => 'Course ID reference'
         ];
-        
+
         return $descriptions[$colname] ?? 'Standard column';
     }
 
     /**
      * Render mapping area
      */
-    private function render_mapping_area() {
+    private function render_mapping_area()
+    {
         $o = '';
         $o .= \html_writer::start_div('mapping-area mt-4');
         $o .= \html_writer::start_div('card');
         $o .= \html_writer::start_div('card-header bg-info text-white d-flex justify-content-between align-items-center');
-        $o .= \html_writer::tag('h5', 
-            \html_writer::tag('i', '', ['class' => 'fas fa-link mr-2']) . 'Column Mappings', 
+        $o .= \html_writer::tag(
+            'h5',
+            \html_writer::tag('i', '', ['class' => 'fas fa-link mr-2']) . 'Column Mappings',
             ['class' => 'mb-0']
         );
         $o .= \html_writer::tag('span', '0 mappings', ['id' => 'mapping-count-badge', 'class' => 'badge badge-light']);
         $o .= \html_writer::end_div();
         $o .= \html_writer::start_div('card-body');
-        
+
         $o .= \html_writer::start_div('row mb-3');
         $o .= \html_writer::start_div('col-md-5 text-right font-weight-bold');
         $o .= 'Moodle Column';
@@ -3323,20 +3828,23 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= 'Sargam Column';
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::start_div('mapping-list', ['id' => 'mapping-list']);
-        $o .= \html_writer::tag('p', 
+        $o .= \html_writer::tag(
+            'p',
             'No mappings defined yet. Click "Map" buttons to create mappings.',
             ['class' => 'text-muted text-center py-4']
         );
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::start_div('mt-3 text-right');
-        $o .= \html_writer::tag('button', 
+        $o .= \html_writer::tag(
+            'button',
             \html_writer::tag('i', '', ['class' => 'fas fa-magic mr-2']) . 'Suggest Mappings',
             ['id' => 'suggest-mappings-btn', 'class' => 'btn btn-warning mr-2']
         );
-        $o .= \html_writer::tag('button', 
+        $o .= \html_writer::tag(
+            'button',
             \html_writer::tag('i', '', ['class' => 'fas fa-trash mr-2']) . 'Clear All',
             ['id' => 'clear-mappings-btn', 'class' => 'btn btn-outline-danger']
         );
@@ -3344,19 +3852,21 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         return $o;
     }
 
     /**
      * Render migration actions
      */
-    private function render_migration_actions($formid, $token, $cohortid, $selectedusers) {
+    private function render_migration_actions($formid, $token, $cohortid, $selectedusers)
+    {
         $o = '';
         $o .= \html_writer::start_div('migration-actions mt-4');
         $o .= \html_writer::start_div('card');
         $o .= \html_writer::start_div('card-header bg-warning');
-        $o .= \html_writer::tag('h5', 
+        $o .= \html_writer::tag(
+            'h5',
             \html_writer::tag('i', '', ['class' => 'fas fa-cogs mr-2']) . 'Migration Actions',
             ['class' => 'mb-0']
         );
@@ -3364,17 +3874,19 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= \html_writer::start_div('card-body');
         $o .= \html_writer::start_div('row align-items-center');
         $o .= \html_writer::start_div('col-md-8');
-        $o .= \html_writer::tag('p', 
+        $o .= \html_writer::tag(
+            'p',
             'Selected users will be migrated to Sargam based on your column mappings.',
             ['class' => 'mb-2']
         );
-        $o .= \html_writer::tag('small', 
+        $o .= \html_writer::tag(
+            'small',
             'Make sure all required fields are mapped before migration.',
             ['class' => 'text-muted']
         );
         $o .= \html_writer::end_div();
         $o .= \html_writer::start_div('col-md-4 text-right');
-        
+
         $o .= \html_writer::empty_tag('input', [
             'type' => 'hidden',
             'id' => 'migration-formid',
@@ -3395,46 +3907,51 @@ document.addEventListener("DOMContentLoaded",function(){
             'id' => 'migration-userids',
             'value' => implode(',', $selectedusers)
         ]);
-        
-        $o .= \html_writer::tag('button', 
+
+        $o .= \html_writer::tag(
+            'button',
             \html_writer::tag('i', '', ['class' => 'fas fa-play mr-2']) . 'Test Connection',
             ['id' => 'test-connection-btn', 'class' => 'btn btn-info mr-2']
         );
-        $o .= \html_writer::tag('button', 
+        $o .= \html_writer::tag(
+            'button',
             \html_writer::tag('i', '', ['class' => 'fas fa-check-circle mr-2']) . 'Validate Mappings',
             ['id' => 'validate-mappings-btn', 'class' => 'btn btn-secondary mr-2']
         );
-        $o .= \html_writer::tag('button', 
+        $o .= \html_writer::tag(
+            'button',
             \html_writer::tag('i', '', ['class' => 'fas fa-rocket mr-2']) . 'Execute Migration',
             ['id' => 'execute-migration-btn', 'class' => 'btn btn-success']
         );
-        
+
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         return $o;
     }
 
     /**
      * Render progress area
      */
-    private function render_progress_area($selectedusers = []) {
+    private function render_progress_area($selectedusers = [])
+    {
         $usercount = is_array($selectedusers) ? count($selectedusers) : 0;
-        
+
         $o = '';
         $o .= \html_writer::start_div('migration-progress mt-4', ['id' => 'migration-progress', 'style' => 'display: none;']);
         $o .= \html_writer::start_div('card');
         $o .= \html_writer::start_div('card-header bg-success text-white');
-        $o .= \html_writer::tag('h5', 
+        $o .= \html_writer::tag(
+            'h5',
             \html_writer::tag('i', '', ['class' => 'fas fa-chart-line mr-2']) . 'Migration Progress',
             ['class' => 'mb-0']
         );
         $o .= \html_writer::end_div();
         $o .= \html_writer::start_div('card-body');
-        
+
         $o .= \html_writer::start_div('progress mb-3', ['style' => 'height: 25px;']);
         $o .= \html_writer::start_div('progress-bar progress-bar-striped progress-bar-animated bg-success', [
             'id' => 'migration-progress-bar',
@@ -3447,9 +3964,9 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= '0%';
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::tag('p', 'Ready to migrate...', ['id' => 'migration-status', 'class' => 'font-weight-bold']);
-        
+
         $o .= \html_writer::start_div('migration-log mt-3', [
             'id' => 'migration-log',
             'style' => 'background: #1a2634; border-radius: 5px; padding: 15px; max-height: 200px; overflow-y: auto; font-family: monospace;'
@@ -3457,769 +3974,771 @@ document.addEventListener("DOMContentLoaded",function(){
         $o .= \html_writer::tag('div', '✓ Migration interface initialized', ['class' => 'text-success']);
         $o .= \html_writer::tag('div', '✓ Ready to migrate ' . $usercount . ' users', ['class' => 'text-info']);
         $o .= \html_writer::end_div();
-        
+
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
         $o .= \html_writer::end_div();
-        
+
         return $o;
     }
 
     /**
      * Render migration JavaScript - IMPROVED VERSION with normal functions
      */
-   /**
- * Render migration JavaScript - IMPROVED VERSION with normal functions
- */
-/**
- * Render migration JavaScript - COMPLETE WORKING VERSION
- */
-/**
- * Render migration JavaScript - CLEAN VERSION with only requested mappings
- */
-private function render_migration_javascript($userdata, $formid, $token, $cohortid) {
-    // All requested mappings including course map
-    $suggestions = [
-        'user_credentials' => [
-            ['moodle' => 'username', 'sargam' => 'user_name'],
-            ['moodle' => 'firstname', 'sargam' => 'first_name'],
-            ['moodle' => 'lastname', 'sargam' => 'last_name'],
-            ['moodle' => 'email', 'sargam' => 'email_id'],
-            ['moodle' => 'phone1', 'sargam' => 'mobile_no']
-        ],
-        'student_master' => [
-            ['moodle' => 'username', 'sargam' => 'user_id'],
-            ['moodle' => 'firstname', 'sargam' => 'first_name'],
-            ['moodle' => 'lastname', 'sargam' => 'last_name'],
-            ['moodle' => 'email', 'sargam' => 'email'],
-            ['moodle' => 'phone1', 'sargam' => 'contact_no'],
-            ['moodle' => 'password_hash', 'sargam' => 'password']
-        ],
-        'student_master_course__map' => [
-            ['moodle' => 'id', 'sargam' => 'student_master_pk'],
-            ['moodle' => 'id', 'sargam' => 'course_master_pk'], // Will be mapped via shortname logic in PHP
-            ['moodle' => 'timecreated', 'sargam' => 'created_date'],
-            ['moodle' => 'timemodified', 'sargam' => 'modified_date'],
-            ['moodle' => 'confirmed', 'sargam' => 'active_inactive']
-        ]
-    ];
-    
-    $suggestions_json = json_encode($suggestions, JSON_PRETTY_PRINT);
-    
-    $o = \html_writer::start_tag('script', ['type' => 'text/javascript']);
-    $o .= "\n\n// ============================================\n";
-    $o .= "// MOODLE TO SARGAM MIGRATION JAVASCRIPT - COMPLETE VERSION WITH COURSE MAP\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "// Global state\n";
-    $o .= "let currentMappings = {\n";
-    $o .= "    user_credentials: {},\n";
-    $o .= "    student_master: {},\n";
-    $o .= "    student_master_course__map: {}\n";
-    $o .= "};\n\n";
-    
-    $o .= "let selectedMoodleColumn = null;\n";
-    $o .= "let selectedSargamColumn = null;\n";
-    $o .= "let selectedSargamTable = null;\n";
-    $o .= "let selectedMoodleLabel = null;\n";
-    $o .= "let selectedSargamLabel = null;\n\n";
-    
-    $o .= "// Complete mapping suggestions including course map\n";
-    $o .= "const MAPPING_SUGGESTIONS = {$suggestions_json};\n\n";
-    
-    $o .= "// ============================================\n";
-    $o .= "// INITIALIZATION FUNCTION\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "document.addEventListener('DOMContentLoaded', function() {\n";
-    $o .= "    initMigrationInterface();\n";
-    $o .= "});\n\n";
-    
-    $o .= "function initMigrationInterface() {\n";
-    $o .= "    console.log('Initializing migration interface...');\n";
-    $o .= "    \n";
-    $o .= "    // Moodle column buttons\n";
-    $o .= "    document.querySelectorAll('.map-moodle-btn').forEach(btn => {\n";
-    $o .= "        btn.addEventListener('click', onMoodleColumnClick);\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    // Sargam column buttons\n";
-    $o .= "    document.querySelectorAll('.map-sargam-btn').forEach(btn => {\n";
-    $o .= "        btn.addEventListener('click', onSargamColumnClick);\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    // Action buttons\n";
-    $o .= "    const suggestBtn = document.getElementById('suggest-mappings-btn');\n";
-    $o .= "    if (suggestBtn) {\n";
-    $o .= "        suggestBtn.addEventListener('click', function(e) {\n";
-    $o .= "            e.preventDefault();\n";
-    $o .= "            suggestMappings();\n";
-    $o .= "        });\n";
-    $o .= "        console.log('Suggest button listener attached');\n";
-    $o .= "    } else {\n";
-    $o .= "        console.error('Suggest button not found!');\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const clearBtn = document.getElementById('clear-mappings-btn');\n";
-    $o .= "    if (clearBtn) {\n";
-    $o .= "        clearBtn.addEventListener('click', function(e) {\n";
-    $o .= "            e.preventDefault();\n";
-    $o .= "            clearAllMappings();\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const testBtn = document.getElementById('test-connection-btn');\n";
-    $o .= "    if (testBtn) {\n";
-    $o .= "        testBtn.addEventListener('click', function(e) {\n";
-    $o .= "            e.preventDefault();\n";
-    $o .= "            testConnection();\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const validateBtn = document.getElementById('validate-mappings-btn');\n";
-    $o .= "    if (validateBtn) {\n";
-    $o .= "        validateBtn.addEventListener('click', function(e) {\n";
-    $o .= "            e.preventDefault();\n";
-    $o .= "            validateMappings();\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const executeBtn = document.getElementById('execute-migration-btn');\n";
-    $o .= "    if (executeBtn) {\n";
-    $o .= "        executeBtn.addEventListener('click', function(e) {\n";
-    $o .= "            e.preventDefault();\n";
-    $o .= "            executeMigration();\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    // Load saved mappings\n";
-    $o .= "    loadMappings();\n";
-    $o .= "    addLogEntry('✓ Migration interface initialized', 'success');\n";
-    $o .= "    const userCount = document.getElementById('migration-userids')?.value?.split(',').length || 0;\n";
-    $o .= "    addLogEntry('✓ Ready to migrate ' + userCount + ' users', 'info');\n";
-    $o .= "}\n\n";
-    
-    $o .= "// ============================================\n";
-    $o .= "// COLUMN SELECTION HANDLERS\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "function onMoodleColumnClick(e) {\n";
-    $o .= "    e.preventDefault();\n";
-    $o .= "    const btn = e.currentTarget;\n";
-    $o .= "    const column = btn.dataset.column;\n";
-    $o .= "    const label = btn.dataset.label;\n\n";
-    
-    $o .= "    // Update UI\n";
-    $o .= "    document.querySelectorAll('.map-moodle-btn').forEach(b => {\n";
-    $o .= "        b.classList.remove('active', 'btn-primary');\n";
-    $o .= "        b.classList.add('btn-outline-primary');\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    btn.classList.add('active', 'btn-primary');\n";
-    $o .= "    btn.classList.remove('btn-outline-primary');\n\n";
-    
-    $o .= "    selectedMoodleColumn = column;\n";
-    $o .= "    selectedMoodleLabel = label;\n";
-    $o .= "    highlightMoodleRow(column);\n\n";
-    
-    $o .= "    if (selectedSargamColumn && selectedSargamTable) {\n";
-    $o .= "        createMapping();\n";
-    $o .= "    }\n";
-    $o .= "}\n\n";
-    
-    $o .= "function onSargamColumnClick(e) {\n";
-    $o .= "    e.preventDefault();\n";
-    $o .= "    const btn = e.currentTarget;\n";
-    $o .= "    const table = btn.dataset.table;\n";
-    $o .= "    const column = btn.dataset.column;\n";
-    $o .= "    const label = btn.dataset.label;\n\n";
-    
-    $o .= "    // Update UI\n";
-    $o .= "    document.querySelectorAll('.map-sargam-btn').forEach(b => {\n";
-    $o .= "        b.classList.remove('active', 'btn-success');\n";
-    $o .= "        b.classList.add('btn-outline-success');\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    btn.classList.add('active', 'btn-success');\n";
-    $o .= "    btn.classList.remove('btn-outline-success');\n\n";
-    
-    $o .= "    selectedSargamColumn = column;\n";
-    $o .= "    selectedSargamLabel = label;\n";
-    $o .= "    selectedSargamTable = table;\n";
-    $o .= "    highlightSargamRow(table, column);\n\n";
-    
-    $o .= "    if (selectedMoodleColumn) {\n";
-    $o .= "        createMapping();\n";
-    $o .= "    }\n";
-    $o .= "}\n\n";
-    
-    $o .= "function highlightMoodleRow(column) {\n";
-    $o .= "    document.querySelectorAll('.moodle-column-row').forEach(row => {\n";
-    $o .= "        row.classList.remove('table-primary');\n";
-    $o .= "        if (row.dataset.column === column) {\n";
-    $o .= "            row.classList.add('table-primary');\n";
-    $o .= "        }\n";
-    $o .= "    });\n";
-    $o .= "}\n\n";
-    
-    $o .= "function highlightSargamRow(table, column) {\n";
-    $o .= "    document.querySelectorAll('.sargam-column-row').forEach(row => {\n";
-    $o .= "        row.classList.remove('table-success');\n";
-    $o .= "        if (row.dataset.table === table && row.dataset.column === column) {\n";
-    $o .= "            row.classList.add('table-success');\n";
-    $o .= "        }\n";
-    $o .= "    });\n";
-    $o .= "}\n\n";
-    
-    $o .= "// ============================================\n";
-    $o .= "// MAPPING MANAGEMENT\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "function createMapping() {\n";
-    $o .= "    if (!selectedMoodleColumn || !selectedSargamColumn || !selectedSargamTable) {\n";
-    $o .= "        addLogEntry('Please select both Moodle and Sargam columns', 'warning');\n";
-    $o .= "        return;\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const moodleCol = selectedMoodleColumn;\n";
-    $o .= "    const sargamCol = selectedSargamColumn;\n";
-    $o .= "    const table = selectedSargamTable;\n\n";
-    
-    $o .= "    // Check if already mapped\n";
-    $o .= "    if (currentMappings[table][moodleCol]) {\n";
-    $o .= "        alert(`Column \${moodleCol} is already mapped to \${currentMappings[table][moodleCol]}`);\n";
-    $o .= "        resetSelections();\n";
-    $o .= "        return;\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    // Check if target column already used in this table\n";
-    $o .= "    let isUsed = false;\n";
-    $o .= "    let usedBy = '';\n\n";
-    
-    $o .= "    Object.keys(currentMappings[table]).forEach(key => {\n";
-    $o .= "        if (currentMappings[table][key] === sargamCol) {\n";
-    $o .= "            isUsed = true;\n";
-    $o .= "            usedBy = key;\n";
-    $o .= "        }\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    if (isUsed) {\n";
-    $o .= "        alert(`Sargam column \${sargamCol} is already mapped to \${usedBy} in \${getTableLabel(table)}`);\n";
-    $o .= "        resetSelections();\n";
-    $o .= "        return;\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    // Save mapping\n";
-    $o .= "    currentMappings[table][moodleCol] = sargamCol;\n";
-    $o .= "    addMappingToList(moodleCol, sargamCol, table);\n";
-    $o .= "    addLogEntry(`✓ Mapped: \${moodleCol} → \${sargamCol} (\${getTableLabel(table)})`, 'success');\n";
-    $o .= "    saveMappings();\n";
-    $o .= "    resetSelections();\n";
-    $o .= "    updateMappingCount();\n";
-    $o .= "}\n\n";
-    
-    $o .= "function addMappingToList(moodleCol, sargamCol, table) {\n";
-    $o .= "    const mappingList = document.getElementById('mapping-list');\n";
-    $o .= "    if (!mappingList) return;\n\n";
-    
-    $o .= "    const tableLabel = getTableLabel(table);\n\n";
-    
-    $o .= "    // Remove 'no mappings' message if it exists\n";
-    $o .= "    if (mappingList.children.length === 1 && mappingList.children[0].tagName === 'P') {\n";
-    $o .= "        mappingList.innerHTML = '';\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    // Check if this mapping already exists in the DOM\n";
-    $o .= "    const existingItems = mappingList.querySelectorAll(`.mapping-item[data-moodle=\"\${moodleCol}\"][data-table=\"\${table}\"]`);\n";
-    $o .= "    if (existingItems.length > 0) return;\n\n";
-    
-    $o .= "    const mappingItem = document.createElement('div');\n";
-    $o .= "    mappingItem.className = 'mapping-item row mb-2 pb-2 border-bottom';\n";
-    $o .= "    mappingItem.dataset.moodle = moodleCol;\n";
-    $o .= "    mappingItem.dataset.sargam = sargamCol;\n";
-    $o .= "    mappingItem.dataset.table = table;\n\n";
-    
-    $o .= "    mappingItem.innerHTML = `\n";
-    $o .= "        <div class=\"col-md-5 text-right\">\n";
-    $o .= "            <span class=\"badge badge-primary\">Moodle</span>\n";
-    $o .= "            <strong>\${moodleCol}</strong>\n";
-    $o .= "        </div>\n";
-    $o .= "        <div class=\"col-md-2 text-center\">\n";
-    $o .= "            <i class=\"fas fa-arrow-right text-muted\"></i>\n";
-    $o .= "        </div>\n";
-    $o .= "        <div class=\"col-md-4\">\n";
-    $o .= "            <span class=\"badge badge-success\">\${tableLabel}</span>\n";
-    $o .= "            <strong>\${sargamCol}</strong>\n";
-    $o .= "        </div>\n";
-    $o .= "        <div class=\"col-md-1 text-right\">\n";
-    $o .= "            <button class=\"btn btn-sm btn-outline-danger remove-mapping-btn\" \n";
-    $o .= "                    onclick=\"removeMapping('\${moodleCol}', '\${table}')\">\n";
-    $o .= "                <i class=\"fas fa-times\"></i>\n";
-    $o .= "            </button>\n";
-    $o .= "        </div>\n";
-    $o .= "    `;\n\n";
-    
-    $o .= "    mappingList.appendChild(mappingItem);\n";
-    $o .= "}\n\n";
-    
-    $o .= "function removeMapping(moodleCol, table) {\n";
-    $o .= "    if (confirm('Remove this mapping?')) {\n";
-    $o .= "        delete currentMappings[table][moodleCol];\n";
-    $o .= "        document.querySelectorAll(`.mapping-item[data-moodle=\"\${moodleCol}\"][data-table=\"\${table}\"]`)\n";
-    $o .= "            .forEach(el => el.remove());\n";
-    $o .= "        addLogEntry(`🗑️ Removed mapping for \${moodleCol} from \${getTableLabel(table)}`, 'info');\n";
-    $o .= "        saveMappings();\n";
-    $o .= "        updateMappingCount();\n\n";
-    
-    $o .= "        if (document.querySelectorAll('.mapping-item').length === 0) {\n";
-    $o .= "            document.getElementById('mapping-list').innerHTML = \n";
-    $o .= "                '<p class=\"text-muted text-center py-4\">No mappings defined yet. Click \"Map\" buttons to create mappings.</p>';\n";
-    $o .= "        }\n";
-    $o .= "    }\n";
-    $o .= "}\n\n";
-    
-    $o .= "function clearAllMappings() {\n";
-    $o .= "    if (confirm('Clear all defined mappings?')) {\n";
-    $o .= "        currentMappings = {\n";
-    $o .= "            user_credentials: {},\n";
-    $o .= "            student_master: {},\n";
-    $o .= "            student_master_course__map: {}\n";
-    $o .= "        };\n";
-    $o .= "        document.getElementById('mapping-list').innerHTML = \n";
-    $o .= "            '<p class=\"text-muted text-center py-4\">No mappings defined yet. Click \"Map\" buttons to create mappings.</p>';\n";
-    $o .= "        addLogEntry('🗑️ All mappings cleared', 'info');\n";
-    $o .= "        saveMappings();\n";
-    $o .= "        updateMappingCount();\n";
-    $o .= "    }\n";
-    $o .= "}\n\n";
-    
-    $o .= "function getTableLabel(table) {\n";
-    $o .= "    const labels = {\n";
-    $o .= "        'user_credentials': 'User Credentials',\n";
-    $o .= "        'student_master': 'Student Master',\n";
-    $o .= "        'student_master_course__map': 'Course Enrollments'\n";
-    $o .= "    };\n";
-    $o .= "    return labels[table] || table;\n";
-    $o .= "}\n\n";
-    
-    $o .= "function resetSelections() {\n";
-    $o .= "    selectedMoodleColumn = null;\n";
-    $o .= "    selectedSargamColumn = null;\n";
-    $o .= "    selectedSargamTable = null;\n";
-    $o .= "    selectedMoodleLabel = null;\n";
-    $o .= "    selectedSargamLabel = null;\n\n";
-    
-    $o .= "    // Reset button states\n";
-    $o .= "    document.querySelectorAll('.map-moodle-btn').forEach(b => {\n";
-    $o .= "        b.classList.remove('active', 'btn-primary');\n";
-    $o .= "        b.classList.add('btn-outline-primary');\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    document.querySelectorAll('.map-sargam-btn').forEach(b => {\n";
-    $o .= "        b.classList.remove('active', 'btn-success');\n";
-    $o .= "        b.classList.add('btn-outline-success');\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    // Remove row highlights\n";
-    $o .= "    document.querySelectorAll('.moodle-column-row').forEach(row => {\n";
-    $o .= "        row.classList.remove('table-primary');\n";
-    $o .= "    });\n\n";
-    
-    $o .= "    document.querySelectorAll('.sargam-column-row').forEach(row => {\n";
-    $o .= "        row.classList.remove('table-success');\n";
-    $o .= "    });\n";
-    $o .= "}\n\n";
-    
-    $o .= "function saveMappings() {\n";
-    $o .= "    localStorage.setItem('moodle_sargam_mappings', JSON.stringify(currentMappings));\n";
-    $o .= "}\n\n";
-    
-    $o .= "function loadMappings() {\n";
-    $o .= "    const saved = localStorage.getItem('moodle_sargam_mappings');\n";
-    $o .= "    if (saved) {\n";
-    $o .= "        try {\n";
-    $o .= "            const parsed = JSON.parse(saved);\n";
-    $o .= "            // Ensure all tables exist\n";
-    $o .= "            currentMappings = {\n";
-    $o .= "                user_credentials: parsed.user_credentials || {},\n";
-    $o .= "                student_master: parsed.student_master || {},\n";
-    $o .= "                student_master_course__map: parsed.student_master_course__map || {}\n";
-    $o .= "            };\n\n";
-    
-    $o .= "            // Clear and rebuild mapping list\n";
-    $o .= "            document.getElementById('mapping-list').innerHTML = '';\n";
-    $o .= "            let hasMappings = false;\n\n";
-    
-    $o .= "            Object.keys(currentMappings).forEach(table => {\n";
-    $o .= "                Object.keys(currentMappings[table]).forEach(moodleCol => {\n";
-    $o .= "                    const sargamCol = currentMappings[table][moodleCol];\n";
-    $o .= "                    addMappingToList(moodleCol, sargamCol, table);\n";
-    $o .= "                    hasMappings = true;\n";
-    $o .= "                });\n";
-    $o .= "            });\n\n";
-    
-    $o .= "            if (!hasMappings) {\n";
-    $o .= "                document.getElementById('mapping-list').innerHTML = \n";
-    $o .= "                    '<p class=\"text-muted text-center py-4\">No mappings defined yet. Click \"Map\" buttons to create mappings.</p>';\n";
-    $o .= "            }\n\n";
-    
-    $o .= "            updateMappingCount();\n";
-    $o .= "            addLogEntry('📂 Loaded saved mappings', 'info');\n";
-    $o .= "        } catch (e) {\n";
-    $o .= "            console.error('Error loading saved mappings', e);\n";
-    $o .= "        }\n";
-    $o .= "    }\n";
-    $o .= "}\n\n";
-    
-    $o .= "function updateMappingCount() {\n";
-    $o .= "    let total = 0;\n";
-    $o .= "    Object.keys(currentMappings).forEach(table => {\n";
-    $o .= "        total += Object.keys(currentMappings[table]).length;\n";
-    $o .= "    });\n";
-    $o .= "    const badge = document.getElementById('mapping-count-badge');\n";
-    $o .= "    if (badge) badge.textContent = total + ' mapping' + (total !== 1 ? 's' : '');\n";
-    $o .= "}\n\n";
-    
-    $o .= "// ============================================\n";
-    $o .= "// SUGGEST MAPPINGS FUNCTION - ALL REQUESTED MAPPINGS INCLUDING COURSE MAP\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "function suggestMappings() {\n";
-    $o .= "    console.log('Suggest mappings called');\n";
-    $o .= "    let appliedCount = 0;\n";
-    $o .= "    let suggestionsByTable = {\n";
-    $o .= "        user_credentials: [],\n";
-    $o .= "        student_master: [],\n";
-    $o .= "        student_master_course__map: []\n";
-    $o .= "    };\n\n";
-    
-    $o .= "    // User credentials mappings\n";
-    $o .= "    if (MAPPING_SUGGESTIONS.user_credentials) {\n";
-    $o .= "        MAPPING_SUGGESTIONS.user_credentials.forEach(suggestion => {\n";
-    $o .= "            if (!currentMappings.user_credentials[suggestion.moodle]) {\n";
-    $o .= "                let isUsed = Object.values(currentMappings.user_credentials).includes(suggestion.sargam);\n";
-    $o .= "                if (!isUsed) {\n";
-    $o .= "                    currentMappings.user_credentials[suggestion.moodle] = suggestion.sargam;\n";
-    $o .= "                    suggestionsByTable.user_credentials.push(suggestion);\n";
-    $o .= "                    appliedCount++;\n";
-    $o .= "                }\n";
-    $o .= "            }\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    // Student master mappings\n";
-    $o .= "    if (MAPPING_SUGGESTIONS.student_master) {\n";
-    $o .= "        MAPPING_SUGGESTIONS.student_master.forEach(suggestion => {\n";
-    $o .= "            if (!currentMappings.student_master[suggestion.moodle]) {\n";
-    $o .= "                let isUsed = Object.values(currentMappings.student_master).includes(suggestion.sargam);\n";
-    $o .= "                if (!isUsed) {\n";
-    $o .= "                    currentMappings.student_master[suggestion.moodle] = suggestion.sargam;\n";
-    $o .= "                    suggestionsByTable.student_master.push(suggestion);\n";
-    $o .= "                    appliedCount++;\n";
-    $o .= "                }\n";
-    $o .= "            }\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    // Course map mappings\n";
-    $o .= "    if (MAPPING_SUGGESTIONS.student_master_course__map) {\n";
-    $o .= "        MAPPING_SUGGESTIONS.student_master_course__map.forEach(suggestion => {\n";
-    $o .= "            if (!currentMappings.student_master_course__map[suggestion.moodle]) {\n";
-    $o .= "                let isUsed = Object.values(currentMappings.student_master_course__map).includes(suggestion.sargam);\n";
-    $o .= "                if (!isUsed) {\n";
-    $o .= "                    currentMappings.student_master_course__map[suggestion.moodle] = suggestion.sargam;\n";
-    $o .= "                    suggestionsByTable.student_master_course__map.push(suggestion);\n";
-    $o .= "                    appliedCount++;\n";
-    $o .= "                }\n";
-    $o .= "            }\n";
-    $o .= "        });\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    if (appliedCount > 0) {\n";
-    $o .= "        // Clear existing mapping display\n";
-    $o .= "        document.getElementById('mapping-list').innerHTML = '';\n\n";
-    
-    $o .= "        // Add all mappings to UI\n";
-    $o .= "        Object.keys(currentMappings).forEach(table => {\n";
-    $o .= "            Object.keys(currentMappings[table]).forEach(moodleCol => {\n";
-    $o .= "                const sargamCol = currentMappings[table][moodleCol];\n";
-    $o .= "                addMappingToList(moodleCol, sargamCol, table);\n";
-    $o .= "            });\n";
-    $o .= "        });\n\n";
-    
-    $o .= "        // Show summary with all mappings\n";
-    $o .= "        addLogEntry(`✨ Applied \${appliedCount} mapping suggestions`, 'success');\n";
-    $o .= "        addLogEntry(`   📁 User Credentials: \${suggestionsByTable.user_credentials.length} mappings`, 'info');\n";
-    $o .= "        addLogEntry(`   📁 Student Master: \${suggestionsByTable.student_master.length} mappings`, 'info');\n";
-    $o .= "        addLogEntry(`   📁 Course Enrollments: \${suggestionsByTable.student_master_course__map.length} mappings`, 'info');\n\n";
-    
-    $o .= "        addLogEntry('📝 Applied mappings:', 'success');\n";
-    $o .= "        addLogEntry('   📍 User Credentials:', 'info');\n";
-    $o .= "        addLogEntry('     • username → user_name', 'info');\n";
-    $o .= "        addLogEntry('     • firstname → first_name', 'info');\n";
-    $o .= "        addLogEntry('     • lastname → last_name', 'info');\n";
-    $o .= "        addLogEntry('     • email → email_id', 'info');\n";
-    $o .= "        addLogEntry('     • phone1 → mobile_no', 'info');\n\n";
-    
-    $o .= "        addLogEntry('   📍 Student Master:', 'info');\n";
-    $o .= "        addLogEntry('     • username → user_id', 'info');\n";
-    $o .= "        addLogEntry('     • firstname → first_name', 'info');\n";
-    $o .= "        addLogEntry('     • lastname → last_name', 'info');\n";
-    $o .= "        addLogEntry('     • email → email', 'info');\n";
-    $o .= "        addLogEntry('     • phone1 → contact_no', 'info');\n";
-    $o .= "        addLogEntry('     • password_hash → password', 'info');\n\n";
-    
-    $o .= "        addLogEntry('   📍 Course Enrollments:', 'info');\n";
-    $o .= "        addLogEntry('     • id → student_master_pk (auto-matched)', 'info');\n";
-    $o .= "        addLogEntry('     • id → course_master_pk (via shortname)', 'info');\n";
-    $o .= "        addLogEntry('     • timecreated → created_date', 'info');\n";
-    $o .= "        addLogEntry('     • timemodified → modified_date', 'info');\n";
-    $o .= "        addLogEntry('     • confirmed → active_inactive', 'info');\n\n";
-    
-    $o .= "        saveMappings();\n";
-    $o .= "        updateMappingCount();\n";
-    $o .= "    } else {\n";
-    $o .= "        addLogEntry('ℹ️ No new mappings could be applied', 'info');\n";
-    $o .= "    }\n";
-    $o .= "}\n\n";
-    
-    $o .= "// ============================================\n";
-    $o .= "// EXECUTE MIGRATION FUNCTION\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "function executeMigration() {\n";
-    $o .= "    // Count mappings\n";
-    $o .= "    let totalMappings = 0;\n";
-    $o .= "    let mappingsByTable = {\n";
-    $o .= "        user_credentials: Object.keys(currentMappings.user_credentials).length,\n";
-    $o .= "        student_master: Object.keys(currentMappings.student_master).length,\n";
-    $o .= "        student_master_course__map: Object.keys(currentMappings.student_master_course__map).length\n";
-    $o .= "    };\n";
-    $o .= "    totalMappings = mappingsByTable.user_credentials + mappingsByTable.student_master + mappingsByTable.student_master_course__map;\n\n";
-    
-    $o .= "    if (totalMappings === 0) {\n";
-    $o .= "        alert('Please define column mappings before migration');\n";
-    $o .= "        return;\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const userids = document.getElementById('migration-userids').value;\n";
-    $o .= "    if (!userids) {\n";
-    $o .= "        alert('No users selected for migration');\n";
-    $o .= "        return;\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    const userIds = userids.split(',');\n\n";
-    
-    $o .= "    // Show mapping summary\n";
-    $o .= "    let confirmMessage = `Migrate \${userIds.length} users to Sargam with following mappings:\\n\\n`;\n";
-    $o .= "    confirmMessage += `📁 User Credentials: \${mappingsByTable.user_credentials} mappings\\n`;\n";
-    $o .= "    confirmMessage += `📁 Student Master: \${mappingsByTable.student_master} mappings\\n`;\n";
-    $o .= "    confirmMessage += `📁 Course Enrollments: \${mappingsByTable.student_master_course__map} mappings\\n\\n`;\n";
-    $o .= "    confirmMessage += `Continue with migration?`;\n\n";
-    
-    $o .= "    if (!confirm(confirmMessage)) {\n";
-    $o .= "        return;\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    showProgress();\n";
-    $o .= "    addLogEntry('🚀 Starting migration process...', 'success');\n";
-    $o .= "    addLogEntry(`📊 Preparing to migrate \${userIds.length} users`, 'info');\n";
-    $o .= "    addLogEntry(`📋 Mapping summary:`, 'info');\n";
-    $o .= "    addLogEntry(`   • User Credentials: \${mappingsByTable.user_credentials} mappings`, 'info');\n";
-    $o .= "    addLogEntry(`   • Student Master: \${mappingsByTable.student_master} mappings`, 'info');\n";
-    $o .= "    addLogEntry(`   • Course Enrollments: \${mappingsByTable.student_master_course__map} mappings`, 'info');\n";
-    $o .= "    addLogEntry(`   • Note: course_master_pk will be matched via shortname from form_submissions`, 'info');\n\n";
-    
-    $o .= "    // Prepare migration data\n";
-    $o .= "    const migrationData = {\n";
-    $o .= "        userids: userIds,\n";
-    $o .= "        mappings: currentMappings,\n";
-    $o .= "        formid: document.getElementById('migration-formid').value,\n";
-    $o .= "        token: document.getElementById('migration-token').value,\n";
-    $o .= "        cohortid: document.getElementById('migration-cohortid').value\n";
-    $o .= "    };\n\n";
-    
-    $o .= "    // Show progress\n";
-    $o .= "    updateProgress(10, 'Connecting to Sargam database...');\n";
-    $o .= "    addLogEntry('🔌 Connecting to Sargam database...', 'info');\n\n";
-    
-    $o .= "    // Make AJAX call to actual migration endpoint\n";
-    $o .= "    fetch('migration_ajax.php', {\n";
-    $o .= "        method: 'POST',\n";
-    $o .= "        headers: {\n";
-    $o .= "            'Content-Type': 'application/json',\n";
-    $o .= "        },\n";
-    $o .= "        body: JSON.stringify(migrationData)\n";
-    $o .= "    })\n";
-    $o .= "    .then(response => response.json())\n";
-    $o .= "    .then(data => {\n";
-    $o .= "        if (data.success) {\n";
-    $o .= "            updateProgress(100, 'Migration completed successfully!');\n";
-    $o .= "            addLogEntry('✅ Migration completed successfully!', 'success');\n";
-    $o .= "            addLogEntry(`✨ \${data.migrated_count} users migrated to Sargam`, 'success');\n\n";
-    
-    $o .= "            if (data.details && data.details.length > 0) {\n";
-    $o .= "                addLogEntry('📋 Migration details:', 'info');\n";
-    $o .= "                data.details.forEach(detail => {\n";
-    $o .= "                    addLogEntry(`   • \${detail}`, 'info');\n";
-    $o .= "                });\n";
-    $o .= "            }\n\n";
-    
-    $o .= "            // Show success summary\n";
-    $o .= "            addLogEntry('', 'info');\n";
-    $o .= "            addLogEntry('✅ Migration Summary:', 'success');\n";
-    $o .= "            addLogEntry('   ✓ User Credentials migrated', 'success');\n";
-    $o .= "            addLogEntry('   ✓ Student Master migrated', 'success');\n";
-    $o .= "            addLogEntry('   ✓ Course Enrollments migrated (via shortname matching)', 'success');\n\n";
-    
-    $o .= "            setTimeout(() => {\n";
-    $o .= "                alert(`✅ Migration completed!\\n\\n` +\n";
-    $o .= "                      `\${data.migrated_count} users successfully migrated to Sargam.\\n\\n` +\n";
-    $o .= "                      `📁 User Credentials: \${mappingsByTable.user_credentials} mappings\\n` +\n";
-    $o .= "                      `📁 Student Master: \${mappingsByTable.student_master} mappings\\n` +\n";
-    $o .= "                      `📁 Course Enrollments: \${mappingsByTable.student_master_course__map} mappings`);\n";
-    $o .= "            }, 500);\n";
-    $o .= "        } else {\n";
-    $o .= "            updateProgress(0, 'Migration failed');\n";
-    $o .= "            addLogEntry(`❌ Migration failed: \${data.error}`, 'error');\n";
-    $o .= "            alert(`❌ Migration failed: \${data.error}`);\n";
-    $o .= "        }\n";
-    $o .= "    })\n";
-    $o .= "    .catch(error => {\n";
-    $o .= "        console.error('Error:', error);\n";
-    $o .= "        updateProgress(0, 'Migration failed');\n";
-    $o .= "        addLogEntry(`❌ Connection error: \${error.message}`, 'error');\n";
-    $o .= "        alert('❌ Failed to connect to migration endpoint. Make sure migration_ajax.php exists.');\n";
-    $o .= "    });\n";
-    $o .= "}\n\n";
-    
-    $o .= "// ============================================\n";
-    $o .= "// UTILITY FUNCTIONS\n";
-    $o .= "// ============================================\n\n";
-    
-    $o .= "function testConnection() {\n";
-    $o .= "    addLogEntry('🔌 Testing Sargam database connection...', 'info');\n";
-    $o .= "    showProgress();\n";
-    $o .= "    updateProgress(10, 'Testing connection...');\n\n";
-    
-    $o .= "    fetch('migration_test_connection.php', {\n";
-    $o .= "        method: 'POST',\n";
-    $o .= "        headers: {\n";
-    $o .= "            'Content-Type': 'application/json',\n";
-    $o .= "        }\n";
-    $o .= "    })\n";
-    $o .= "    .then(response => response.json())\n";
-    $o .= "    .then(data => {\n";
-    $o .= "        if (data.success) {\n";
-    $o .= "            updateProgress(100, 'Connection successful');\n";
-    $o .= "            addLogEntry('✅ Sargam database connection successful', 'success');\n";
-    $o .= "            addLogEntry(`📊 Database: \${data.database}`, 'info');\n";
-    $o .= "            if (data.tables) addLogEntry(`📊 Tables found: \${data.tables.join(', ')}`, 'info');\n";
-    $o .= "            addLogEntry('✓ Ready to migrate', 'success');\n";
-    $o .= "        } else {\n";
-    $o .= "            updateProgress(0, 'Connection failed');\n";
-    $o .= "            addLogEntry(`❌ Connection failed: \${data.error}`, 'error');\n";
-    $o .= "        }\n";
-    $o .= "    })\n";
-    $o .= "    .catch(error => {\n";
-    $o .= "        updateProgress(0, 'Connection failed');\n";
-    $o .= "        addLogEntry(`❌ Error: \${error.message}`, 'error');\n";
-    $o .= "    });\n";
-    $o .= "}\n\n";
-    
-    $o .= "function validateMappings() {\n";
-    $o .= "    addLogEntry('🔍 Validating column mappings...', 'info');\n\n";
-    
-    $o .= "    setTimeout(() => {\n";
-    $o .= "        let isValid = true;\n";
-    $o .= "        let warnings = [];\n\n";
-    
-    $o .= "        // Check user credentials required fields\n";
-    $o .= "        const requiredUserCred = ['user_name', 'first_name', 'last_name', 'email_id'];\n";
-    $o .= "        const mappedUserCred = Object.values(currentMappings.user_credentials);\n\n";
-    
-    $o .= "        requiredUserCred.forEach(field => {\n";
-    $o .= "            if (!mappedUserCred.includes(field)) {\n";
-    $o .= "                warnings.push(`Missing recommended field: \${field} in User Credentials`);\n";
-    $o .= "            }\n";
-    $o .= "        });\n\n";
-    
-    $o .= "        // Check student master required fields\n";
-    $o .= "        const requiredStudent = ['user_id', 'first_name'];\n";
-    $o .= "        const mappedStudent = Object.values(currentMappings.student_master);\n\n";
-    
-    $o .= "        requiredStudent.forEach(field => {\n";
-    $o .= "            if (!mappedStudent.includes(field)) {\n";
-    $o .= "                warnings.push(`Missing recommended field: \${field} in Student Master`);\n";
-    $o .= "            }\n";
-    $o .= "        });\n\n";
-    
-    $o .= "        // Check course map required fields\n";
-    $o .= "        const requiredCourseMap = ['student_master_pk', 'course_master_pk'];\n";
-    $o .= "        const mappedCourseMap = Object.values(currentMappings.student_master_course__map);\n\n";
-    
-    $o .= "        requiredCourseMap.forEach(field => {\n";
-    $o .= "            if (!mappedCourseMap.includes(field)) {\n";
-    $o .= "                warnings.push(`Missing field: \${field} in Course Enrollments - will be auto-mapped via logic`);\n";
-    $o .= "            }\n";
-    $o .= "        });\n\n";
-    
-    $o .= "        if (warnings.length === 0) {\n";
-    $o .= "            addLogEntry('✅ All requested mappings are configured!', 'success');\n";
-    $o .= "            alert('✓ Mapping validation passed!');\n";
-    $o .= "        } else {\n";
-    $o .= "            warnings.forEach(warning => addLogEntry('ℹ️ ' + warning, 'info'));\n";
-    $o .= "            alert('✓ Mappings are valid. You can proceed with migration.');\n";
-    $o .= "        }\n";
-    $o .= "    }, 1000);\n";
-    $o .= "}\n\n";
-    
-    $o .= "function updateProgress(percent, status) {\n";
-    $o .= "    const progressBar = document.getElementById('migration-progress-bar');\n";
-    $o .= "    const statusEl = document.getElementById('migration-status');\n";
-    $o .= "    if (progressBar) {\n";
-    $o .= "        progressBar.style.width = percent + '%';\n";
-    $o .= "        progressBar.setAttribute('aria-valuenow', percent);\n";
-    $o .= "        progressBar.textContent = percent + '%';\n";
-    $o .= "    }\n";
-    $o .= "    if (statusEl) statusEl.textContent = status;\n";
-    $o .= "}\n\n";
-    
-    $o .= "function showProgress() {\n";
-    $o .= "    const progressDiv = document.getElementById('migration-progress');\n";
-    $o .= "    if (progressDiv) progressDiv.style.display = 'block';\n";
-    $o .= "}\n\n";
-    
-    $o .= "function addLogEntry(message, type = 'info') {\n";
-    $o .= "    const log = document.getElementById('migration-log');\n";
-    $o .= "    if (!log) return;\n\n";
-    
-    $o .= "    const entry = document.createElement('div');\n";
-    $o .= "    const timestamp = new Date().toLocaleTimeString();\n";
-    $o .= "    let colorClass = '';\n\n";
-    
-    $o .= "    switch(type) {\n";
-    $o .= "        case 'success': colorClass = 'text-success'; break;\n";
-    $o .= "        case 'warning': colorClass = 'text-warning'; break;\n";
-    $o .= "        case 'error': colorClass = 'text-danger'; break;\n";
-    $o .= "        default: colorClass = 'text-info';\n";
-    $o .= "    }\n\n";
-    
-    $o .= "    entry.className = colorClass;\n";
-    $o .= "    entry.innerHTML = `[\${timestamp}] \${message}`;\n";
-    $o .= "    log.appendChild(entry);\n";
-    $o .= "    log.scrollTop = log.scrollHeight;\n";
-    $o .= "}\n\n";
-    
-    $o .= \html_writer::end_tag('script');
-    
-    return $o;
-}
+    /**
+     * Render migration JavaScript - IMPROVED VERSION with normal functions
+     */
+    /**
+     * Render migration JavaScript - COMPLETE WORKING VERSION
+     */
+    /**
+     * Render migration JavaScript - CLEAN VERSION with only requested mappings
+     */
+    private function render_migration_javascript($userdata, $formid, $token, $cohortid)
+    {
+        // All requested mappings including course map
+        $suggestions = [
+            'user_credentials' => [
+                ['moodle' => 'username', 'sargam' => 'user_name'],
+                ['moodle' => 'firstname', 'sargam' => 'first_name'],
+                ['moodle' => 'lastname', 'sargam' => 'last_name'],
+                ['moodle' => 'email', 'sargam' => 'email_id'],
+                ['moodle' => 'phone1', 'sargam' => 'mobile_no']
+            ],
+            'student_master' => [
+                ['moodle' => 'username', 'sargam' => 'user_id'],
+                ['moodle' => 'firstname', 'sargam' => 'first_name'],
+                ['moodle' => 'lastname', 'sargam' => 'last_name'],
+                ['moodle' => 'email', 'sargam' => 'email'],
+                ['moodle' => 'phone1', 'sargam' => 'contact_no'],
+                ['moodle' => 'password_hash', 'sargam' => 'password']
+            ],
+            'student_master_course__map' => [
+                ['moodle' => 'id', 'sargam' => 'student_master_pk'],
+                ['moodle' => 'id', 'sargam' => 'course_master_pk'], // Will be mapped via shortname logic in PHP
+                ['moodle' => 'timecreated', 'sargam' => 'created_date'],
+                ['moodle' => 'timemodified', 'sargam' => 'modified_date'],
+                ['moodle' => 'confirmed', 'sargam' => 'active_inactive']
+            ]
+        ];
+
+        $suggestions_json = json_encode($suggestions, JSON_PRETTY_PRINT);
+
+        $o = \html_writer::start_tag('script', ['type' => 'text/javascript']);
+        $o .= "\n\n// ============================================\n";
+        $o .= "// MOODLE TO SARGAM MIGRATION JAVASCRIPT - COMPLETE VERSION WITH COURSE MAP\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "// Global state\n";
+        $o .= "let currentMappings = {\n";
+        $o .= "    user_credentials: {},\n";
+        $o .= "    student_master: {},\n";
+        $o .= "    student_master_course__map: {}\n";
+        $o .= "};\n\n";
+
+        $o .= "let selectedMoodleColumn = null;\n";
+        $o .= "let selectedSargamColumn = null;\n";
+        $o .= "let selectedSargamTable = null;\n";
+        $o .= "let selectedMoodleLabel = null;\n";
+        $o .= "let selectedSargamLabel = null;\n\n";
+
+        $o .= "// Complete mapping suggestions including course map\n";
+        $o .= "const MAPPING_SUGGESTIONS = {$suggestions_json};\n\n";
+
+        $o .= "// ============================================\n";
+        $o .= "// INITIALIZATION FUNCTION\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "document.addEventListener('DOMContentLoaded', function() {\n";
+        $o .= "    initMigrationInterface();\n";
+        $o .= "});\n\n";
+
+        $o .= "function initMigrationInterface() {\n";
+        $o .= "    console.log('Initializing migration interface...');\n";
+        $o .= "    \n";
+        $o .= "    // Moodle column buttons\n";
+        $o .= "    document.querySelectorAll('.map-moodle-btn').forEach(btn => {\n";
+        $o .= "        btn.addEventListener('click', onMoodleColumnClick);\n";
+        $o .= "    });\n\n";
+
+        $o .= "    // Sargam column buttons\n";
+        $o .= "    document.querySelectorAll('.map-sargam-btn').forEach(btn => {\n";
+        $o .= "        btn.addEventListener('click', onSargamColumnClick);\n";
+        $o .= "    });\n\n";
+
+        $o .= "    // Action buttons\n";
+        $o .= "    const suggestBtn = document.getElementById('suggest-mappings-btn');\n";
+        $o .= "    if (suggestBtn) {\n";
+        $o .= "        suggestBtn.addEventListener('click', function(e) {\n";
+        $o .= "            e.preventDefault();\n";
+        $o .= "            suggestMappings();\n";
+        $o .= "        });\n";
+        $o .= "        console.log('Suggest button listener attached');\n";
+        $o .= "    } else {\n";
+        $o .= "        console.error('Suggest button not found!');\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const clearBtn = document.getElementById('clear-mappings-btn');\n";
+        $o .= "    if (clearBtn) {\n";
+        $o .= "        clearBtn.addEventListener('click', function(e) {\n";
+        $o .= "            e.preventDefault();\n";
+        $o .= "            clearAllMappings();\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const testBtn = document.getElementById('test-connection-btn');\n";
+        $o .= "    if (testBtn) {\n";
+        $o .= "        testBtn.addEventListener('click', function(e) {\n";
+        $o .= "            e.preventDefault();\n";
+        $o .= "            testConnection();\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const validateBtn = document.getElementById('validate-mappings-btn');\n";
+        $o .= "    if (validateBtn) {\n";
+        $o .= "        validateBtn.addEventListener('click', function(e) {\n";
+        $o .= "            e.preventDefault();\n";
+        $o .= "            validateMappings();\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const executeBtn = document.getElementById('execute-migration-btn');\n";
+        $o .= "    if (executeBtn) {\n";
+        $o .= "        executeBtn.addEventListener('click', function(e) {\n";
+        $o .= "            e.preventDefault();\n";
+        $o .= "            executeMigration();\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    // Load saved mappings\n";
+        $o .= "    loadMappings();\n";
+        $o .= "    addLogEntry('✓ Migration interface initialized', 'success');\n";
+        $o .= "    const userCount = document.getElementById('migration-userids')?.value?.split(',').length || 0;\n";
+        $o .= "    addLogEntry('✓ Ready to migrate ' + userCount + ' users', 'info');\n";
+        $o .= "}\n\n";
+
+        $o .= "// ============================================\n";
+        $o .= "// COLUMN SELECTION HANDLERS\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "function onMoodleColumnClick(e) {\n";
+        $o .= "    e.preventDefault();\n";
+        $o .= "    const btn = e.currentTarget;\n";
+        $o .= "    const column = btn.dataset.column;\n";
+        $o .= "    const label = btn.dataset.label;\n\n";
+
+        $o .= "    // Update UI\n";
+        $o .= "    document.querySelectorAll('.map-moodle-btn').forEach(b => {\n";
+        $o .= "        b.classList.remove('active', 'btn-primary');\n";
+        $o .= "        b.classList.add('btn-outline-primary');\n";
+        $o .= "    });\n\n";
+
+        $o .= "    btn.classList.add('active', 'btn-primary');\n";
+        $o .= "    btn.classList.remove('btn-outline-primary');\n\n";
+
+        $o .= "    selectedMoodleColumn = column;\n";
+        $o .= "    selectedMoodleLabel = label;\n";
+        $o .= "    highlightMoodleRow(column);\n\n";
+
+        $o .= "    if (selectedSargamColumn && selectedSargamTable) {\n";
+        $o .= "        createMapping();\n";
+        $o .= "    }\n";
+        $o .= "}\n\n";
+
+        $o .= "function onSargamColumnClick(e) {\n";
+        $o .= "    e.preventDefault();\n";
+        $o .= "    const btn = e.currentTarget;\n";
+        $o .= "    const table = btn.dataset.table;\n";
+        $o .= "    const column = btn.dataset.column;\n";
+        $o .= "    const label = btn.dataset.label;\n\n";
+
+        $o .= "    // Update UI\n";
+        $o .= "    document.querySelectorAll('.map-sargam-btn').forEach(b => {\n";
+        $o .= "        b.classList.remove('active', 'btn-success');\n";
+        $o .= "        b.classList.add('btn-outline-success');\n";
+        $o .= "    });\n\n";
+
+        $o .= "    btn.classList.add('active', 'btn-success');\n";
+        $o .= "    btn.classList.remove('btn-outline-success');\n\n";
+
+        $o .= "    selectedSargamColumn = column;\n";
+        $o .= "    selectedSargamLabel = label;\n";
+        $o .= "    selectedSargamTable = table;\n";
+        $o .= "    highlightSargamRow(table, column);\n\n";
+
+        $o .= "    if (selectedMoodleColumn) {\n";
+        $o .= "        createMapping();\n";
+        $o .= "    }\n";
+        $o .= "}\n\n";
+
+        $o .= "function highlightMoodleRow(column) {\n";
+        $o .= "    document.querySelectorAll('.moodle-column-row').forEach(row => {\n";
+        $o .= "        row.classList.remove('table-primary');\n";
+        $o .= "        if (row.dataset.column === column) {\n";
+        $o .= "            row.classList.add('table-primary');\n";
+        $o .= "        }\n";
+        $o .= "    });\n";
+        $o .= "}\n\n";
+
+        $o .= "function highlightSargamRow(table, column) {\n";
+        $o .= "    document.querySelectorAll('.sargam-column-row').forEach(row => {\n";
+        $o .= "        row.classList.remove('table-success');\n";
+        $o .= "        if (row.dataset.table === table && row.dataset.column === column) {\n";
+        $o .= "            row.classList.add('table-success');\n";
+        $o .= "        }\n";
+        $o .= "    });\n";
+        $o .= "}\n\n";
+
+        $o .= "// ============================================\n";
+        $o .= "// MAPPING MANAGEMENT\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "function createMapping() {\n";
+        $o .= "    if (!selectedMoodleColumn || !selectedSargamColumn || !selectedSargamTable) {\n";
+        $o .= "        addLogEntry('Please select both Moodle and Sargam columns', 'warning');\n";
+        $o .= "        return;\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const moodleCol = selectedMoodleColumn;\n";
+        $o .= "    const sargamCol = selectedSargamColumn;\n";
+        $o .= "    const table = selectedSargamTable;\n\n";
+
+        $o .= "    // Check if already mapped\n";
+        $o .= "    if (currentMappings[table][moodleCol]) {\n";
+        $o .= "        alert(`Column \${moodleCol} is already mapped to \${currentMappings[table][moodleCol]}`);\n";
+        $o .= "        resetSelections();\n";
+        $o .= "        return;\n";
+        $o .= "    }\n\n";
+
+        $o .= "    // Check if target column already used in this table\n";
+        $o .= "    let isUsed = false;\n";
+        $o .= "    let usedBy = '';\n\n";
+
+        $o .= "    Object.keys(currentMappings[table]).forEach(key => {\n";
+        $o .= "        if (currentMappings[table][key] === sargamCol) {\n";
+        $o .= "            isUsed = true;\n";
+        $o .= "            usedBy = key;\n";
+        $o .= "        }\n";
+        $o .= "    });\n\n";
+
+        $o .= "    if (isUsed) {\n";
+        $o .= "        alert(`Sargam column \${sargamCol} is already mapped to \${usedBy} in \${getTableLabel(table)}`);\n";
+        $o .= "        resetSelections();\n";
+        $o .= "        return;\n";
+        $o .= "    }\n\n";
+
+        $o .= "    // Save mapping\n";
+        $o .= "    currentMappings[table][moodleCol] = sargamCol;\n";
+        $o .= "    addMappingToList(moodleCol, sargamCol, table);\n";
+        $o .= "    addLogEntry(`✓ Mapped: \${moodleCol} → \${sargamCol} (\${getTableLabel(table)})`, 'success');\n";
+        $o .= "    saveMappings();\n";
+        $o .= "    resetSelections();\n";
+        $o .= "    updateMappingCount();\n";
+        $o .= "}\n\n";
+
+        $o .= "function addMappingToList(moodleCol, sargamCol, table) {\n";
+        $o .= "    const mappingList = document.getElementById('mapping-list');\n";
+        $o .= "    if (!mappingList) return;\n\n";
+
+        $o .= "    const tableLabel = getTableLabel(table);\n\n";
+
+        $o .= "    // Remove 'no mappings' message if it exists\n";
+        $o .= "    if (mappingList.children.length === 1 && mappingList.children[0].tagName === 'P') {\n";
+        $o .= "        mappingList.innerHTML = '';\n";
+        $o .= "    }\n\n";
+
+        $o .= "    // Check if this mapping already exists in the DOM\n";
+        $o .= "    const existingItems = mappingList.querySelectorAll(`.mapping-item[data-moodle=\"\${moodleCol}\"][data-table=\"\${table}\"]`);\n";
+        $o .= "    if (existingItems.length > 0) return;\n\n";
+
+        $o .= "    const mappingItem = document.createElement('div');\n";
+        $o .= "    mappingItem.className = 'mapping-item row mb-2 pb-2 border-bottom';\n";
+        $o .= "    mappingItem.dataset.moodle = moodleCol;\n";
+        $o .= "    mappingItem.dataset.sargam = sargamCol;\n";
+        $o .= "    mappingItem.dataset.table = table;\n\n";
+
+        $o .= "    mappingItem.innerHTML = `\n";
+        $o .= "        <div class=\"col-md-5 text-right\">\n";
+        $o .= "            <span class=\"badge badge-primary\">Moodle</span>\n";
+        $o .= "            <strong>\${moodleCol}</strong>\n";
+        $o .= "        </div>\n";
+        $o .= "        <div class=\"col-md-2 text-center\">\n";
+        $o .= "            <i class=\"fas fa-arrow-right text-muted\"></i>\n";
+        $o .= "        </div>\n";
+        $o .= "        <div class=\"col-md-4\">\n";
+        $o .= "            <span class=\"badge badge-success\">\${tableLabel}</span>\n";
+        $o .= "            <strong>\${sargamCol}</strong>\n";
+        $o .= "        </div>\n";
+        $o .= "        <div class=\"col-md-1 text-right\">\n";
+        $o .= "            <button class=\"btn btn-sm btn-outline-danger remove-mapping-btn\" \n";
+        $o .= "                    onclick=\"removeMapping('\${moodleCol}', '\${table}')\">\n";
+        $o .= "                <i class=\"fas fa-times\"></i>\n";
+        $o .= "            </button>\n";
+        $o .= "        </div>\n";
+        $o .= "    `;\n\n";
+
+        $o .= "    mappingList.appendChild(mappingItem);\n";
+        $o .= "}\n\n";
+
+        $o .= "function removeMapping(moodleCol, table) {\n";
+        $o .= "    if (confirm('Remove this mapping?')) {\n";
+        $o .= "        delete currentMappings[table][moodleCol];\n";
+        $o .= "        document.querySelectorAll(`.mapping-item[data-moodle=\"\${moodleCol}\"][data-table=\"\${table}\"]`)\n";
+        $o .= "            .forEach(el => el.remove());\n";
+        $o .= "        addLogEntry(`🗑️ Removed mapping for \${moodleCol} from \${getTableLabel(table)}`, 'info');\n";
+        $o .= "        saveMappings();\n";
+        $o .= "        updateMappingCount();\n\n";
+
+        $o .= "        if (document.querySelectorAll('.mapping-item').length === 0) {\n";
+        $o .= "            document.getElementById('mapping-list').innerHTML = \n";
+        $o .= "                '<p class=\"text-muted text-center py-4\">No mappings defined yet. Click \"Map\" buttons to create mappings.</p>';\n";
+        $o .= "        }\n";
+        $o .= "    }\n";
+        $o .= "}\n\n";
+
+        $o .= "function clearAllMappings() {\n";
+        $o .= "    if (confirm('Clear all defined mappings?')) {\n";
+        $o .= "        currentMappings = {\n";
+        $o .= "            user_credentials: {},\n";
+        $o .= "            student_master: {},\n";
+        $o .= "            student_master_course__map: {}\n";
+        $o .= "        };\n";
+        $o .= "        document.getElementById('mapping-list').innerHTML = \n";
+        $o .= "            '<p class=\"text-muted text-center py-4\">No mappings defined yet. Click \"Map\" buttons to create mappings.</p>';\n";
+        $o .= "        addLogEntry('🗑️ All mappings cleared', 'info');\n";
+        $o .= "        saveMappings();\n";
+        $o .= "        updateMappingCount();\n";
+        $o .= "    }\n";
+        $o .= "}\n\n";
+
+        $o .= "function getTableLabel(table) {\n";
+        $o .= "    const labels = {\n";
+        $o .= "        'user_credentials': 'User Credentials',\n";
+        $o .= "        'student_master': 'Student Master',\n";
+        $o .= "        'student_master_course__map': 'Course Enrollments'\n";
+        $o .= "    };\n";
+        $o .= "    return labels[table] || table;\n";
+        $o .= "}\n\n";
+
+        $o .= "function resetSelections() {\n";
+        $o .= "    selectedMoodleColumn = null;\n";
+        $o .= "    selectedSargamColumn = null;\n";
+        $o .= "    selectedSargamTable = null;\n";
+        $o .= "    selectedMoodleLabel = null;\n";
+        $o .= "    selectedSargamLabel = null;\n\n";
+
+        $o .= "    // Reset button states\n";
+        $o .= "    document.querySelectorAll('.map-moodle-btn').forEach(b => {\n";
+        $o .= "        b.classList.remove('active', 'btn-primary');\n";
+        $o .= "        b.classList.add('btn-outline-primary');\n";
+        $o .= "    });\n\n";
+
+        $o .= "    document.querySelectorAll('.map-sargam-btn').forEach(b => {\n";
+        $o .= "        b.classList.remove('active', 'btn-success');\n";
+        $o .= "        b.classList.add('btn-outline-success');\n";
+        $o .= "    });\n\n";
+
+        $o .= "    // Remove row highlights\n";
+        $o .= "    document.querySelectorAll('.moodle-column-row').forEach(row => {\n";
+        $o .= "        row.classList.remove('table-primary');\n";
+        $o .= "    });\n\n";
+
+        $o .= "    document.querySelectorAll('.sargam-column-row').forEach(row => {\n";
+        $o .= "        row.classList.remove('table-success');\n";
+        $o .= "    });\n";
+        $o .= "}\n\n";
+
+        $o .= "function saveMappings() {\n";
+        $o .= "    localStorage.setItem('moodle_sargam_mappings', JSON.stringify(currentMappings));\n";
+        $o .= "}\n\n";
+
+        $o .= "function loadMappings() {\n";
+        $o .= "    const saved = localStorage.getItem('moodle_sargam_mappings');\n";
+        $o .= "    if (saved) {\n";
+        $o .= "        try {\n";
+        $o .= "            const parsed = JSON.parse(saved);\n";
+        $o .= "            // Ensure all tables exist\n";
+        $o .= "            currentMappings = {\n";
+        $o .= "                user_credentials: parsed.user_credentials || {},\n";
+        $o .= "                student_master: parsed.student_master || {},\n";
+        $o .= "                student_master_course__map: parsed.student_master_course__map || {}\n";
+        $o .= "            };\n\n";
+
+        $o .= "            // Clear and rebuild mapping list\n";
+        $o .= "            document.getElementById('mapping-list').innerHTML = '';\n";
+        $o .= "            let hasMappings = false;\n\n";
+
+        $o .= "            Object.keys(currentMappings).forEach(table => {\n";
+        $o .= "                Object.keys(currentMappings[table]).forEach(moodleCol => {\n";
+        $o .= "                    const sargamCol = currentMappings[table][moodleCol];\n";
+        $o .= "                    addMappingToList(moodleCol, sargamCol, table);\n";
+        $o .= "                    hasMappings = true;\n";
+        $o .= "                });\n";
+        $o .= "            });\n\n";
+
+        $o .= "            if (!hasMappings) {\n";
+        $o .= "                document.getElementById('mapping-list').innerHTML = \n";
+        $o .= "                    '<p class=\"text-muted text-center py-4\">No mappings defined yet. Click \"Map\" buttons to create mappings.</p>';\n";
+        $o .= "            }\n\n";
+
+        $o .= "            updateMappingCount();\n";
+        $o .= "            addLogEntry('📂 Loaded saved mappings', 'info');\n";
+        $o .= "        } catch (e) {\n";
+        $o .= "            console.error('Error loading saved mappings', e);\n";
+        $o .= "        }\n";
+        $o .= "    }\n";
+        $o .= "}\n\n";
+
+        $o .= "function updateMappingCount() {\n";
+        $o .= "    let total = 0;\n";
+        $o .= "    Object.keys(currentMappings).forEach(table => {\n";
+        $o .= "        total += Object.keys(currentMappings[table]).length;\n";
+        $o .= "    });\n";
+        $o .= "    const badge = document.getElementById('mapping-count-badge');\n";
+        $o .= "    if (badge) badge.textContent = total + ' mapping' + (total !== 1 ? 's' : '');\n";
+        $o .= "}\n\n";
+
+        $o .= "// ============================================\n";
+        $o .= "// SUGGEST MAPPINGS FUNCTION - ALL REQUESTED MAPPINGS INCLUDING COURSE MAP\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "function suggestMappings() {\n";
+        $o .= "    console.log('Suggest mappings called');\n";
+        $o .= "    let appliedCount = 0;\n";
+        $o .= "    let suggestionsByTable = {\n";
+        $o .= "        user_credentials: [],\n";
+        $o .= "        student_master: [],\n";
+        $o .= "        student_master_course__map: []\n";
+        $o .= "    };\n\n";
+
+        $o .= "    // User credentials mappings\n";
+        $o .= "    if (MAPPING_SUGGESTIONS.user_credentials) {\n";
+        $o .= "        MAPPING_SUGGESTIONS.user_credentials.forEach(suggestion => {\n";
+        $o .= "            if (!currentMappings.user_credentials[suggestion.moodle]) {\n";
+        $o .= "                let isUsed = Object.values(currentMappings.user_credentials).includes(suggestion.sargam);\n";
+        $o .= "                if (!isUsed) {\n";
+        $o .= "                    currentMappings.user_credentials[suggestion.moodle] = suggestion.sargam;\n";
+        $o .= "                    suggestionsByTable.user_credentials.push(suggestion);\n";
+        $o .= "                    appliedCount++;\n";
+        $o .= "                }\n";
+        $o .= "            }\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    // Student master mappings\n";
+        $o .= "    if (MAPPING_SUGGESTIONS.student_master) {\n";
+        $o .= "        MAPPING_SUGGESTIONS.student_master.forEach(suggestion => {\n";
+        $o .= "            if (!currentMappings.student_master[suggestion.moodle]) {\n";
+        $o .= "                let isUsed = Object.values(currentMappings.student_master).includes(suggestion.sargam);\n";
+        $o .= "                if (!isUsed) {\n";
+        $o .= "                    currentMappings.student_master[suggestion.moodle] = suggestion.sargam;\n";
+        $o .= "                    suggestionsByTable.student_master.push(suggestion);\n";
+        $o .= "                    appliedCount++;\n";
+        $o .= "                }\n";
+        $o .= "            }\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    // Course map mappings\n";
+        $o .= "    if (MAPPING_SUGGESTIONS.student_master_course__map) {\n";
+        $o .= "        MAPPING_SUGGESTIONS.student_master_course__map.forEach(suggestion => {\n";
+        $o .= "            if (!currentMappings.student_master_course__map[suggestion.moodle]) {\n";
+        $o .= "                let isUsed = Object.values(currentMappings.student_master_course__map).includes(suggestion.sargam);\n";
+        $o .= "                if (!isUsed) {\n";
+        $o .= "                    currentMappings.student_master_course__map[suggestion.moodle] = suggestion.sargam;\n";
+        $o .= "                    suggestionsByTable.student_master_course__map.push(suggestion);\n";
+        $o .= "                    appliedCount++;\n";
+        $o .= "                }\n";
+        $o .= "            }\n";
+        $o .= "        });\n";
+        $o .= "    }\n\n";
+
+        $o .= "    if (appliedCount > 0) {\n";
+        $o .= "        // Clear existing mapping display\n";
+        $o .= "        document.getElementById('mapping-list').innerHTML = '';\n\n";
+
+        $o .= "        // Add all mappings to UI\n";
+        $o .= "        Object.keys(currentMappings).forEach(table => {\n";
+        $o .= "            Object.keys(currentMappings[table]).forEach(moodleCol => {\n";
+        $o .= "                const sargamCol = currentMappings[table][moodleCol];\n";
+        $o .= "                addMappingToList(moodleCol, sargamCol, table);\n";
+        $o .= "            });\n";
+        $o .= "        });\n\n";
+
+        $o .= "        // Show summary with all mappings\n";
+        $o .= "        addLogEntry(`✨ Applied \${appliedCount} mapping suggestions`, 'success');\n";
+        $o .= "        addLogEntry(`   📁 User Credentials: \${suggestionsByTable.user_credentials.length} mappings`, 'info');\n";
+        $o .= "        addLogEntry(`   📁 Student Master: \${suggestionsByTable.student_master.length} mappings`, 'info');\n";
+        $o .= "        addLogEntry(`   📁 Course Enrollments: \${suggestionsByTable.student_master_course__map.length} mappings`, 'info');\n\n";
+
+        $o .= "        addLogEntry('📝 Applied mappings:', 'success');\n";
+        $o .= "        addLogEntry('   📍 User Credentials:', 'info');\n";
+        $o .= "        addLogEntry('     • username → user_name', 'info');\n";
+        $o .= "        addLogEntry('     • firstname → first_name', 'info');\n";
+        $o .= "        addLogEntry('     • lastname → last_name', 'info');\n";
+        $o .= "        addLogEntry('     • email → email_id', 'info');\n";
+        $o .= "        addLogEntry('     • phone1 → mobile_no', 'info');\n\n";
+
+        $o .= "        addLogEntry('   📍 Student Master:', 'info');\n";
+        $o .= "        addLogEntry('     • username → user_id', 'info');\n";
+        $o .= "        addLogEntry('     • firstname → first_name', 'info');\n";
+        $o .= "        addLogEntry('     • lastname → last_name', 'info');\n";
+        $o .= "        addLogEntry('     • email → email', 'info');\n";
+        $o .= "        addLogEntry('     • phone1 → contact_no', 'info');\n";
+        $o .= "        addLogEntry('     • password_hash → password', 'info');\n\n";
+
+        $o .= "        addLogEntry('   📍 Course Enrollments:', 'info');\n";
+        $o .= "        addLogEntry('     • id → student_master_pk (auto-matched)', 'info');\n";
+        $o .= "        addLogEntry('     • id → course_master_pk (via shortname)', 'info');\n";
+        $o .= "        addLogEntry('     • timecreated → created_date', 'info');\n";
+        $o .= "        addLogEntry('     • timemodified → modified_date', 'info');\n";
+        $o .= "        addLogEntry('     • confirmed → active_inactive', 'info');\n\n";
+
+        $o .= "        saveMappings();\n";
+        $o .= "        updateMappingCount();\n";
+        $o .= "    } else {\n";
+        $o .= "        addLogEntry('ℹ️ No new mappings could be applied', 'info');\n";
+        $o .= "    }\n";
+        $o .= "}\n\n";
+
+        $o .= "// ============================================\n";
+        $o .= "// EXECUTE MIGRATION FUNCTION\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "function executeMigration() {\n";
+        $o .= "    // Count mappings\n";
+        $o .= "    let totalMappings = 0;\n";
+        $o .= "    let mappingsByTable = {\n";
+        $o .= "        user_credentials: Object.keys(currentMappings.user_credentials).length,\n";
+        $o .= "        student_master: Object.keys(currentMappings.student_master).length,\n";
+        $o .= "        student_master_course__map: Object.keys(currentMappings.student_master_course__map).length\n";
+        $o .= "    };\n";
+        $o .= "    totalMappings = mappingsByTable.user_credentials + mappingsByTable.student_master + mappingsByTable.student_master_course__map;\n\n";
+
+        $o .= "    if (totalMappings === 0) {\n";
+        $o .= "        alert('Please define column mappings before migration');\n";
+        $o .= "        return;\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const userids = document.getElementById('migration-userids').value;\n";
+        $o .= "    if (!userids) {\n";
+        $o .= "        alert('No users selected for migration');\n";
+        $o .= "        return;\n";
+        $o .= "    }\n\n";
+
+        $o .= "    const userIds = userids.split(',');\n\n";
+
+        $o .= "    // Show mapping summary\n";
+        $o .= "    let confirmMessage = `Migrate \${userIds.length} users to Sargam with following mappings:\\n\\n`;\n";
+        $o .= "    confirmMessage += `📁 User Credentials: \${mappingsByTable.user_credentials} mappings\\n`;\n";
+        $o .= "    confirmMessage += `📁 Student Master: \${mappingsByTable.student_master} mappings\\n`;\n";
+        $o .= "    confirmMessage += `📁 Course Enrollments: \${mappingsByTable.student_master_course__map} mappings\\n\\n`;\n";
+        $o .= "    confirmMessage += `Continue with migration?`;\n\n";
+
+        $o .= "    if (!confirm(confirmMessage)) {\n";
+        $o .= "        return;\n";
+        $o .= "    }\n\n";
+
+        $o .= "    showProgress();\n";
+        $o .= "    addLogEntry('🚀 Starting migration process...', 'success');\n";
+        $o .= "    addLogEntry(`📊 Preparing to migrate \${userIds.length} users`, 'info');\n";
+        $o .= "    addLogEntry(`📋 Mapping summary:`, 'info');\n";
+        $o .= "    addLogEntry(`   • User Credentials: \${mappingsByTable.user_credentials} mappings`, 'info');\n";
+        $o .= "    addLogEntry(`   • Student Master: \${mappingsByTable.student_master} mappings`, 'info');\n";
+        $o .= "    addLogEntry(`   • Course Enrollments: \${mappingsByTable.student_master_course__map} mappings`, 'info');\n";
+        $o .= "    addLogEntry(`   • Note: course_master_pk will be matched via shortname from form_submissions`, 'info');\n\n";
+
+        $o .= "    // Prepare migration data\n";
+        $o .= "    const migrationData = {\n";
+        $o .= "        userids: userIds,\n";
+        $o .= "        mappings: currentMappings,\n";
+        $o .= "        formid: document.getElementById('migration-formid').value,\n";
+        $o .= "        token: document.getElementById('migration-token').value,\n";
+        $o .= "        cohortid: document.getElementById('migration-cohortid').value\n";
+        $o .= "    };\n\n";
+
+        $o .= "    // Show progress\n";
+        $o .= "    updateProgress(10, 'Connecting to Sargam database...');\n";
+        $o .= "    addLogEntry('🔌 Connecting to Sargam database...', 'info');\n\n";
+
+        $o .= "    // Make AJAX call to actual migration endpoint\n";
+        $o .= "    fetch('migration_ajax.php', {\n";
+        $o .= "        method: 'POST',\n";
+        $o .= "        headers: {\n";
+        $o .= "            'Content-Type': 'application/json',\n";
+        $o .= "        },\n";
+        $o .= "        body: JSON.stringify(migrationData)\n";
+        $o .= "    })\n";
+        $o .= "    .then(response => response.json())\n";
+        $o .= "    .then(data => {\n";
+        $o .= "        if (data.success) {\n";
+        $o .= "            updateProgress(100, 'Migration completed successfully!');\n";
+        $o .= "            addLogEntry('✅ Migration completed successfully!', 'success');\n";
+        $o .= "            addLogEntry(`✨ \${data.migrated_count} users migrated to Sargam`, 'success');\n\n";
+
+        $o .= "            if (data.details && data.details.length > 0) {\n";
+        $o .= "                addLogEntry('📋 Migration details:', 'info');\n";
+        $o .= "                data.details.forEach(detail => {\n";
+        $o .= "                    addLogEntry(`   • \${detail}`, 'info');\n";
+        $o .= "                });\n";
+        $o .= "            }\n\n";
+
+        $o .= "            // Show success summary\n";
+        $o .= "            addLogEntry('', 'info');\n";
+        $o .= "            addLogEntry('✅ Migration Summary:', 'success');\n";
+        $o .= "            addLogEntry('   ✓ User Credentials migrated', 'success');\n";
+        $o .= "            addLogEntry('   ✓ Student Master migrated', 'success');\n";
+        $o .= "            addLogEntry('   ✓ Course Enrollments migrated (via shortname matching)', 'success');\n\n";
+
+        $o .= "            setTimeout(() => {\n";
+        $o .= "                alert(`✅ Migration completed!\\n\\n` +\n";
+        $o .= "                      `\${data.migrated_count} users successfully migrated to Sargam.\\n\\n` +\n";
+        $o .= "                      `📁 User Credentials: \${mappingsByTable.user_credentials} mappings\\n` +\n";
+        $o .= "                      `📁 Student Master: \${mappingsByTable.student_master} mappings\\n` +\n";
+        $o .= "                      `📁 Course Enrollments: \${mappingsByTable.student_master_course__map} mappings`);\n";
+        $o .= "            }, 500);\n";
+        $o .= "        } else {\n";
+        $o .= "            updateProgress(0, 'Migration failed');\n";
+        $o .= "            addLogEntry(`❌ Migration failed: \${data.error}`, 'error');\n";
+        $o .= "            alert(`❌ Migration failed: \${data.error}`);\n";
+        $o .= "        }\n";
+        $o .= "    })\n";
+        $o .= "    .catch(error => {\n";
+        $o .= "        console.error('Error:', error);\n";
+        $o .= "        updateProgress(0, 'Migration failed');\n";
+        $o .= "        addLogEntry(`❌ Connection error: \${error.message}`, 'error');\n";
+        $o .= "        alert('❌ Failed to connect to migration endpoint. Make sure migration_ajax.php exists.');\n";
+        $o .= "    });\n";
+        $o .= "}\n\n";
+
+        $o .= "// ============================================\n";
+        $o .= "// UTILITY FUNCTIONS\n";
+        $o .= "// ============================================\n\n";
+
+        $o .= "function testConnection() {\n";
+        $o .= "    addLogEntry('🔌 Testing Sargam database connection...', 'info');\n";
+        $o .= "    showProgress();\n";
+        $o .= "    updateProgress(10, 'Testing connection...');\n\n";
+
+        $o .= "    fetch('migration_test_connection.php', {\n";
+        $o .= "        method: 'POST',\n";
+        $o .= "        headers: {\n";
+        $o .= "            'Content-Type': 'application/json',\n";
+        $o .= "        }\n";
+        $o .= "    })\n";
+        $o .= "    .then(response => response.json())\n";
+        $o .= "    .then(data => {\n";
+        $o .= "        if (data.success) {\n";
+        $o .= "            updateProgress(100, 'Connection successful');\n";
+        $o .= "            addLogEntry('✅ Sargam database connection successful', 'success');\n";
+        $o .= "            addLogEntry(`📊 Database: \${data.database}`, 'info');\n";
+        $o .= "            if (data.tables) addLogEntry(`📊 Tables found: \${data.tables.join(', ')}`, 'info');\n";
+        $o .= "            addLogEntry('✓ Ready to migrate', 'success');\n";
+        $o .= "        } else {\n";
+        $o .= "            updateProgress(0, 'Connection failed');\n";
+        $o .= "            addLogEntry(`❌ Connection failed: \${data.error}`, 'error');\n";
+        $o .= "        }\n";
+        $o .= "    })\n";
+        $o .= "    .catch(error => {\n";
+        $o .= "        updateProgress(0, 'Connection failed');\n";
+        $o .= "        addLogEntry(`❌ Error: \${error.message}`, 'error');\n";
+        $o .= "    });\n";
+        $o .= "}\n\n";
+
+        $o .= "function validateMappings() {\n";
+        $o .= "    addLogEntry('🔍 Validating column mappings...', 'info');\n\n";
+
+        $o .= "    setTimeout(() => {\n";
+        $o .= "        let isValid = true;\n";
+        $o .= "        let warnings = [];\n\n";
+
+        $o .= "        // Check user credentials required fields\n";
+        $o .= "        const requiredUserCred = ['user_name', 'first_name', 'last_name', 'email_id'];\n";
+        $o .= "        const mappedUserCred = Object.values(currentMappings.user_credentials);\n\n";
+
+        $o .= "        requiredUserCred.forEach(field => {\n";
+        $o .= "            if (!mappedUserCred.includes(field)) {\n";
+        $o .= "                warnings.push(`Missing recommended field: \${field} in User Credentials`);\n";
+        $o .= "            }\n";
+        $o .= "        });\n\n";
+
+        $o .= "        // Check student master required fields\n";
+        $o .= "        const requiredStudent = ['user_id', 'first_name'];\n";
+        $o .= "        const mappedStudent = Object.values(currentMappings.student_master);\n\n";
+
+        $o .= "        requiredStudent.forEach(field => {\n";
+        $o .= "            if (!mappedStudent.includes(field)) {\n";
+        $o .= "                warnings.push(`Missing recommended field: \${field} in Student Master`);\n";
+        $o .= "            }\n";
+        $o .= "        });\n\n";
+
+        $o .= "        // Check course map required fields\n";
+        $o .= "        const requiredCourseMap = ['student_master_pk', 'course_master_pk'];\n";
+        $o .= "        const mappedCourseMap = Object.values(currentMappings.student_master_course__map);\n\n";
+
+        $o .= "        requiredCourseMap.forEach(field => {\n";
+        $o .= "            if (!mappedCourseMap.includes(field)) {\n";
+        $o .= "                warnings.push(`Missing field: \${field} in Course Enrollments - will be auto-mapped via logic`);\n";
+        $o .= "            }\n";
+        $o .= "        });\n\n";
+
+        $o .= "        if (warnings.length === 0) {\n";
+        $o .= "            addLogEntry('✅ All requested mappings are configured!', 'success');\n";
+        $o .= "            alert('✓ Mapping validation passed!');\n";
+        $o .= "        } else {\n";
+        $o .= "            warnings.forEach(warning => addLogEntry('ℹ️ ' + warning, 'info'));\n";
+        $o .= "            alert('✓ Mappings are valid. You can proceed with migration.');\n";
+        $o .= "        }\n";
+        $o .= "    }, 1000);\n";
+        $o .= "}\n\n";
+
+        $o .= "function updateProgress(percent, status) {\n";
+        $o .= "    const progressBar = document.getElementById('migration-progress-bar');\n";
+        $o .= "    const statusEl = document.getElementById('migration-status');\n";
+        $o .= "    if (progressBar) {\n";
+        $o .= "        progressBar.style.width = percent + '%';\n";
+        $o .= "        progressBar.setAttribute('aria-valuenow', percent);\n";
+        $o .= "        progressBar.textContent = percent + '%';\n";
+        $o .= "    }\n";
+        $o .= "    if (statusEl) statusEl.textContent = status;\n";
+        $o .= "}\n\n";
+
+        $o .= "function showProgress() {\n";
+        $o .= "    const progressDiv = document.getElementById('migration-progress');\n";
+        $o .= "    if (progressDiv) progressDiv.style.display = 'block';\n";
+        $o .= "}\n\n";
+
+        $o .= "function addLogEntry(message, type = 'info') {\n";
+        $o .= "    const log = document.getElementById('migration-log');\n";
+        $o .= "    if (!log) return;\n\n";
+
+        $o .= "    const entry = document.createElement('div');\n";
+        $o .= "    const timestamp = new Date().toLocaleTimeString();\n";
+        $o .= "    let colorClass = '';\n\n";
+
+        $o .= "    switch(type) {\n";
+        $o .= "        case 'success': colorClass = 'text-success'; break;\n";
+        $o .= "        case 'warning': colorClass = 'text-warning'; break;\n";
+        $o .= "        case 'error': colorClass = 'text-danger'; break;\n";
+        $o .= "        default: colorClass = 'text-info';\n";
+        $o .= "    }\n\n";
+
+        $o .= "    entry.className = colorClass;\n";
+        $o .= "    entry.innerHTML = `[\${timestamp}] \${message}`;\n";
+        $o .= "    log.appendChild(entry);\n";
+        $o .= "    log.scrollTop = log.scrollHeight;\n";
+        $o .= "}\n\n";
+
+        $o .= \html_writer::end_tag('script');
+
+        return $o;
+    }
 
     /**
      * Render migration CSS
      */
-    private function render_migration_css() {
+    private function render_migration_css()
+    {
         $o = \html_writer::start_tag('style');
         $o .= "
 .migration-main-container { margin-bottom: 30px; }
@@ -4308,7 +4827,7 @@ private function render_migration_javascript($userdata, $formid, $token, $cohort
 .table-responsive::-webkit-scrollbar-thumb:hover { background: #555; }
 ";
         $o .= \html_writer::end_tag('style');
-        
+
         return $o;
     }
 }
